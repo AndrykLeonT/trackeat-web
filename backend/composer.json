@@ -54,7 +54,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "pnpm --dir ../frontend exec concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"cd ../backend && php artisan serve\" \"cd ../backend && php artisan queue:listen --tries=1\" \"cd ../backend && php artisan pail --timeout=0\" \"pnpm dev\" --names=server,queue,logs,vite"
+            "pnpm --dir ../frontend exec concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"cd ../backend && php artisan serve\" \"cd ../backend && php artisan queue:listen --tries=1\" \"pnpm dev\" --names=server,queue,vite"
         ]
     },
     "extra": {
