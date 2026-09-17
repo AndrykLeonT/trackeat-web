@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transiciones y animaciones — código y comportamiento</title>
+<style>
+  /* Para proyectar. Mismo formato que el de transformaciones.
+     Sin peticiones externas y sin indicaciones para el docente. */
+  :root{
+    --azul:#1f3b63; --azul2:#2e5e8c; --acento:#c0274a; --verde:#1a7a4e;
+    --gris:#33383f; --grisc:#7b828b; --linea:#dbe3ee; --fondo:#f7f9fc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fondo);color:var(--gris);
+       font:19px/1.5 Calibri,"Segoe UI",system-ui,sans-serif;padding-bottom:5rem}
+
+  header.top{background:var(--azul);color:#fff;padding:1.1rem clamp(1rem,3vw,2.4rem);
+             position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(31,59,99,.25)}
+  header.top p{margin:0 0 .2rem;color:#a8bed8;font-size:.72rem;letter-spacing:.09em}
+  header.top h1{margin:0;font-size:clamp(1.3rem,2.6vw,1.7rem)}
+  nav{margin-top:.6rem;display:flex;flex-wrap:wrap;gap:.35rem}
+  nav a{color:#fff;background:rgba(255,255,255,.14);text-decoration:none;
+        padding:.3rem .65rem;border-radius:5px;font-size:.78rem}
+  nav a:hover{background:rgba(255,255,255,.3)}
+
+  main{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.4rem)}
+
+  .cosa{background:#fff;border:1px solid var(--linea);border-radius:12px;
+        margin:1.8rem 0;overflow:hidden;box-shadow:0 1px 3px rgba(31,59,99,.05)}
+  .cosa > .cab{padding:1rem 1.4rem;border-bottom:1px solid var(--linea)}
+  .cosa h2{margin:0;color:var(--azul);font-size:1.5rem;
+           font-family:Consolas,monospace;letter-spacing:-.01em}
+  .cosa h2 small{font-family:Calibri,"Segoe UI",sans-serif;color:var(--grisc);
+                 font-size:1rem;font-weight:400;margin-left:.6rem}
+  .idea{margin:.45rem 0 0;font-size:1.02rem;color:var(--azul2);font-weight:600}
+
+  .par{display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:900px){ .par{grid-template-columns:minmax(0,430px) minmax(0,1fr)} }
+
+  pre{margin:0;padding:1.1rem 1.3rem;background:#16283f;color:#e6eef8;
+      font:16px/1.65 Consolas,"Cascadia Mono",monospace;overflow-x:auto}
+  pre .p{color:#7fd1a8}
+  pre .v{color:#ffcf7a}
+  pre .s{color:#8fa8c4}
+  pre .c{color:#6a8099;font-style:italic}
+  pre .m{background:#3d2230;color:#ff9db0;border-radius:3px;padding:0 .2rem}
+
+  .vivo{padding:1.6rem 1.4rem;display:grid;place-items:center;min-height:230px;
+        background:repeating-linear-gradient(45deg,#fbfcfe,#fbfcfe 14px,#f4f7fb 14px,#f4f7fb 28px)}
+
+  .mandos{padding:.9rem 1.4rem;border-top:1px solid var(--linea);background:#f4f7fb;
+          display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+  button{font:600 15px/1 Calibri,"Segoe UI",sans-serif;padding:.6rem 1.1rem;
+         border:1px solid var(--azul2);background:#fff;color:var(--azul);
+         border-radius:6px;cursor:pointer}
+  button:hover{background:var(--azul2);color:#fff}
+  button[aria-pressed="true"]{background:var(--acento);border-color:var(--acento);color:#fff}
+  label.desliza{display:flex;align-items:center;gap:.6rem;font-size:.95rem;font-weight:600;
+                color:var(--azul)}
+  input[type=range]{width:220px}
+  output{font:700 16px/1 Consolas,monospace;color:var(--acento);min-width:5rem}
+
+  .observa{margin:0;padding:.9rem 1.4rem;background:#eef7f2;border-top:1px solid #cfe6da;
+           font-size:1rem;color:#0f5334}
+  .observa b{color:var(--verde);letter-spacing:.05em;font-size:.75rem;
+             display:block;text-transform:uppercase;margin-bottom:.2rem}
+
+  /* ------------------------------ piezas ------------------------------ */
+  .pista{position:relative;width:100%;max-width:560px;height:78px;border:2px dashed #c3cfdf;
+         border-radius:10px;background:#fff;overflow:hidden}
+  .bola{position:absolute;top:15px;left:12px;width:46px;height:46px;border-radius:50%;
+        background:var(--azul2);display:grid;place-items:center;color:#fff;
+        font:700 13px/1 Consolas,monospace}
+
+  .carriles{display:grid;gap:12px;width:100%;max-width:600px}
+  .carril{position:relative;height:52px;border:2px dashed #c3cfdf;border-radius:8px;
+          background:#fff;overflow:hidden}
+  .carril span.et{position:absolute;left:8px;top:50%;transform:translateY(-50%);
+                  font:700 12px/1 Consolas,monospace;color:var(--grisc);z-index:2}
+  .ficha{position:absolute;top:9px;left:96px;width:34px;height:34px;border-radius:6px;
+         background:var(--acento);display:grid;place-items:center;color:#fff;
+         font:700 12px/1 Consolas,monospace}
+
+  .caja{width:120px;height:80px;border-radius:10px;background:var(--azul2);
+        display:grid;place-items:center;color:#fff;font-weight:700;font-size:.95rem}
+
+  .tarjetita{width:230px;border:1px solid var(--linea);border-radius:10px;background:#fff;
+             padding:14px;box-shadow:0 1px 4px rgba(31,59,99,.08)}
+  .tarjetita h4{margin:0 0 6px;color:var(--azul);font-size:1rem}
+  .tarjetita p{margin:0;font-size:.85rem;color:var(--grisc)}
+
+  .panel{overflow:hidden;background:#eef3f9;border-radius:8px;
+         display:grid;grid-template-rows:0fr;transition:grid-template-rows .5s ease}
+  .panel.abierto{grid-template-rows:1fr}
+  .panel > div{min-height:0}
+  .panel p{margin:0;padding:14px;font-size:.9rem}
+
+  .avisoRM{background:#fbf4f6;border-left:4px solid var(--acento);border-radius:0 8px 8px 0;
+           padding:.9rem 1.1rem;margin:0 1.4rem 1.2rem;font-size:.95rem;color:var(--acento)}
+
+  @media (prefers-reduced-motion: reduce){
+    .bola,.ficha,.caja,.panel{transition:none !important;animation:none !important}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <p>APLICACIONES WEB II · DAM-2306 · UNIDAD 1 · SUBTEMAS 1.3 Y 1.4</p>
+  <h1>Transiciones y animaciones — código y comportamiento</h1>
+  <nav>
+    <a href="#basico">la transición</a>
+    <a href="#donde">dónde va</a>
+    <a href="#curva">timing-function</a>
+    <a href="#retraso">delay</a>
+    <a href="#property">property y all</a>
+    <a href="#keyframes">@keyframes</a>
+    <a href="#fill">fill-mode</a>
+    <a href="#direction">direction</a>
+    <a href="#veces">iteration y play-state</a>
+    <a href="#alto">altura auto</a>
+    <a href="#rm">movimiento reducido</a>
+  </nav>
+</header>
+
+<main>
+
+<!-- ===================================================== 1 -->
+<article class="cosa" id="basico">
+  <div class="cab">
+    <h2>transition <small>disparador y dos estados</small></h2>
+    <p class="idea">Una transición necesita algo que la dispare. Sin disparador no pasa nada.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.bola {</span>
+  <span class="p">transform</span>: <span class="v">translateX(0)</span>;
+  <span class="p">transition</span>: <span class="v">transform .6s ease</span>;
+<span class="s">}</span>
+
+<span class="c">/* El disparador: una clase, :hover,
+   :focus, o un cambio desde script */</span>
+<span class="s">.bola.movida {</span>
+  <span class="p">transform</span>: <span class="v">translateX(420px)</span>;
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="pista"><div class="bola" id="bola-1">A</div></div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-disparar="bola-1">Disparar</button>
+    <button type="button" data-reset>Regresar todo</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    El navegador interpola entre los dos valores. Tú declaras el principio y el final;
+    los cuadros intermedios los pone él.</p>
+</article>
+
+<!-- ===================================================== 2 -->
+<article class="cosa" id="donde">
+  <div class="cab">
+    <h2>Dónde se declara la transición <small>el error más común del tema</small></h2>
+    <p class="idea">En la regla base va y regresa. En <code>:hover</code> solo va.</p>
+  </div>
+  <div class="par">
+<pre><span class="c">/* BIEN — la transición vive en la base */</span>
+<span class="s">.a {</span> <span class="p">transition</span>: <span class="v">transform .5s ease</span>; <span class="s">}</span>
+<span class="s">.a:hover {</span> <span class="p">transform</span>: <span class="v">translateX(300px)</span>; <span class="s">}</span>
+
+<span class="c">/* MAL — solo mientras el puntero está
+   encima existe la transición */</span>
+<span class="s">.b:hover {</span>
+  <span class="p">transform</span>: <span class="v">translateX(300px)</span>;
+  <span class="m">transition: transform .5s ease;</span>
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="carriles">
+        <div class="carril"><span class="et">bien</span>
+          <div class="ficha" id="f-bien">A</div></div>
+        <div class="carril"><span class="et">mal</span>
+          <div class="ficha" id="f-mal" style="background:var(--grisc)">B</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-ida>Ir</button>
+    <button type="button" data-vuelta>Regresar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Las dos van igual de suave. Al regresar, la de abajo <b>salta de golpe</b>: cuando se
+    quita el disparador ya no existe la regla que declaraba la transición.</p>
+</article>
+
+<!-- ===================================================== 3 -->
+<article class="cosa" id="curva">
+  <div class="cab">
+    <h2>transition-timing-function <small>cómo se reparte el tiempo</small></h2>
+    <p class="idea">Las cinco salen al mismo tiempo y llegan al mismo tiempo. No se ven igual.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.a {</span> <span class="p">transition-timing-function</span>: <span class="v">linear</span>; <span class="s">}</span>
+<span class="s">.b {</span> <span class="p">transition-timing-function</span>: <span class="v">ease</span>; <span class="s">}</span>
+<span class="s">.c {</span> <span class="p">transition-timing-function</span>: <span class="v">ease-in</span>; <span class="s">}</span>
+<span class="s">.d {</span> <span class="p">transition-timing-function</span>: <span class="v">ease-out</span>; <span class="s">}</span>
+<span class="s">.e {</span> <span class="p">transition-timing-function</span>:
+     <span class="v">cubic-bezier(.68,-.55,.27,1.55)</span>; <span class="s">}</span>
+
+<span class="c">/* La última se pasa del destino y
+   regresa: rebote. */</span></pre>
+    <div class="vivo">
+      <div class="carriles" id="curvas">
+        <div class="carril"><span class="et">linear</span>
+          <div class="ficha" data-curva="linear">1</div></div>
+        <div class="carril"><span class="et">ease</span>
+          <div class="ficha" data-curva="ease">2</div></div>
+        <div class="carril"><span class="et">ease-in</span>
+          <div class="ficha" data-curva="ease-in">3</div></div>
+        <div class="carril"><span class="et">ease-out</span>
+          <div class="ficha" data-curva="ease-out">4</div></div>
+        <div class="carril"><span class="et">rebote</span>
+          <div class="ficha" data-curva="cubic-bezier(.68,-.55,.27,1.55)">5</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-curvas>Correr las cinco</button>
+    <button type="button" data-reset>Regresar todo</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    <code>linear</code> se ve mecánica. <code>ease-out</code> es la que mejor se siente para
+    algo que entra. La quinta se pasa del destino y regresa: eso es un rebote, y sale de
+    cuatro números.</p>
+</article>
+
+<!-- ===================================================== 4 -->
+<article class="cosa" id="retraso">
+  <div class="cab">
+    <h2>transition-duration y -delay <small>cuánto tarda y cuándo empieza</small></h2>
+    <p class="idea">El retraso escalonado es lo que hace que un menú se sienta hecho a mano.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.item {</span>
+  <span class="p">transition-duration</span>: <span class="v" id="txt-dur">.6s</span>;
+  <span class="p">transition-delay</span>: <span class="v" id="txt-del">0s</span>;
+<span class="s">}</span>
+
+<span class="c">/* Escalonado: cada uno espera un
+   poco más que el anterior */</span>
+<span class="s">.item:nth-child(2) {</span> <span class="p">transition-delay</span>: <span class="v">.1s</span>; <span class="s">}</span>
+<span class="s">.item:nth-child(3) {</span> <span class="p">transition-delay</span>: <span class="v">.2s</span>; <span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="carriles" id="escalon">
+        <div class="carril"><span class="et">0s</span><div class="ficha">1</div></div>
+        <div class="carril"><span class="et">.15s</span><div class="ficha">2</div></div>
+        <div class="carril"><span class="et">.30s</span><div class="ficha">3</div></div>
+        <div class="carril"><span class="et">.45s</span><div class="ficha">4</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <label class="desliza">duración
+      <input type="range" id="rango-dur" min="100" max="2000" step="100" value="600">
+      <output id="out-dur">.6s</output>
+    </label>
+    <button type="button" data-escalon>Correr escalonado</button>
+    <button type="button" data-reset>Regresar todo</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Las cuatro tienen la misma duración. Lo único distinto es cuándo arrancan, y con eso
+    solo ya parece coreografía.</p>
+</article>
+
+<!-- ===================================================== 5 -->
+<article class="cosa" id="property">
+  <div class="cab">
+    <h2>transition-property <small>qué se transiciona, y por qué no «all»</small></h2>
+    <p class="idea">Con <code>all</code> el navegador vigila todo, incluso lo que no querías mover.</p>
+  </div>
+  <div class="par">
+<pre><span class="c">/* Explícito: solo estas dos */</span>
+<span class="s">.a {</span>
+  <span class="p">transition-property</span>: <span class="v">transform, opacity</span>;
+  <span class="p">transition-duration</span>: <span class="v">.5s</span>;
+<span class="s">}</span>
+
+<span class="c">/* Atajo con todo junto */</span>
+<span class="s">.a {</span> <span class="p">transition</span>: <span class="v">transform .5s ease, opacity .3s linear</span>; <span class="s">}</span>
+
+<span class="c">/* Cómodo, pero mueve cosas que no
+   pediste y cuesta más */</span>
+<span class="s">.b {</span> <span class="p">transition</span>: <span class="m">all</span> <span class="v">.5s ease</span>; <span class="s">}</span></pre>
+    <div class="vivo">
+      <div style="display:flex;gap:26px;flex-wrap:wrap;justify-content:center">
+        <div style="text-align:center">
+          <div class="caja" id="caja-exp">explícito</div>
+          <p style="font-size:.82rem;color:var(--grisc);margin:.5rem 0 0">solo transform</p>
+        </div>
+        <div style="text-align:center">
+          <div class="caja" id="caja-all" style="background:var(--acento)">all</div>
+          <p style="font-size:.82rem;color:var(--grisc);margin:.5rem 0 0">todo lo que cambie</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-property>Cambiar las dos</button>
+    <button type="button" data-reset>Regresar todo</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Las dos cambian de color, de tamaño y de posición. La izquierda solo <b>transiciona</b>
+    el movimiento y el color salta de golpe; la derecha transiciona todo. Ninguna está mal:
+    lo que está mal es no saber cuál escogiste.</p>
+</article>
+
+<!-- ===================================================== 6 -->
+<article class="cosa" id="keyframes">
+  <div class="cab">
+    <h2>@keyframes <small>una secuencia con pasos intermedios</small></h2>
+    <p class="idea">No necesita disparador. Arranca sola y puede tener los pasos que quieras.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">@keyframes latido {</span>
+  <span class="v">0%</span>   <span class="s">{</span> <span class="p">transform</span>: <span class="v">scale(1)</span>; <span class="s">}</span>
+  <span class="v">30%</span>  <span class="s">{</span> <span class="p">transform</span>: <span class="v">scale(1.25)</span>; <span class="s">}</span>
+  <span class="v">60%</span>  <span class="s">{</span> <span class="p">transform</span>: <span class="v">scale(.95)</span>; <span class="s">}</span>
+  <span class="v">100%</span> <span class="s">{</span> <span class="p">transform</span>: <span class="v">scale(1)</span>; <span class="s">}</span>
+<span class="s">}</span>
+
+<span class="s">.caja {</span>
+  <span class="p">animation</span>: <span class="v">latido 1.2s ease-in-out</span>;
+<span class="s">}</span>
+
+<span class="c">/* La práctica pide tres pasos o más */</span></pre>
+    <div class="vivo">
+      <div class="caja" id="caja-kf">latido</div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-latido>Correr</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Nadie la tocó. Una transición necesita que algo cambie; una animación se ejecuta por su
+    cuenta y pasa por estados intermedios que la transición no puede expresar.</p>
+</article>
+
+<!-- ===================================================== 7 -->
+<article class="cosa" id="fill">
+  <div class="cab">
+    <h2>animation-fill-mode <small>qué pasa antes y después</small></h2>
+    <p class="idea">Sin esto, al terminar la animación el elemento regresa de golpe a como estaba.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">@keyframes correr {</span>
+  <span class="v">from</span> <span class="s">{</span> <span class="p">transform</span>: <span class="v">translateX(0)</span>; <span class="s">}</span>
+  <span class="v">to</span>   <span class="s">{</span> <span class="p">transform</span>: <span class="v">translateX(400px)</span>; <span class="s">}</span>
+<span class="s">}</span>
+
+<span class="s">.a {</span> <span class="p">animation</span>: <span class="v">correr 1.4s <span class="m">none</span> 1s</span>; <span class="s">}</span>
+<span class="s">.b {</span> <span class="p">animation</span>: <span class="v">correr 1.4s <span class="m">forwards</span> 1s</span>; <span class="s">}</span>
+<span class="s">.c {</span> <span class="p">animation</span>: <span class="v">correr 1.4s <span class="m">backwards</span> 1s</span>; <span class="s">}</span>
+<span class="s">.d {</span> <span class="p">animation</span>: <span class="v">correr 1.4s <span class="m">both</span> 1s</span>; <span class="s">}</span>
+
+<span class="c">/* Todas con 1 segundo de retraso,
+   para que se vea qué hacen antes */</span></pre>
+    <div class="vivo">
+      <div class="carriles" id="fills">
+        <div class="carril"><span class="et">none</span><div class="ficha" data-fill="none">1</div></div>
+        <div class="carril"><span class="et">forwards</span><div class="ficha" data-fill="forwards">2</div></div>
+        <div class="carril"><span class="et">backwards</span><div class="ficha" data-fill="backwards">3</div></div>
+        <div class="carril"><span class="et">both</span><div class="ficha" data-fill="both">4</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-fills>Correr las cuatro</button>
+    <button type="button" data-reset>Regresar todo</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Miren <b>el primer segundo</b>, antes de que arranquen: las de <code>backwards</code> y
+    <code>both</code> ya están en la pose inicial. Y miren <b>el final</b>: las de
+    <code>none</code> y <code>backwards</code> regresan de un salto.</p>
+</article>
+
+<!-- ===================================================== 8 -->
+<article class="cosa" id="direction">
+  <div class="cab">
+    <h2>animation-direction <small>de ida, de regreso, o de ida y vuelta</small></h2>
+    <p class="idea">Con <code>alternate</code> no hace falta escribir el regreso en los keyframes.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.a {</span> <span class="p">animation-direction</span>: <span class="v">normal</span>; <span class="s">}</span>
+<span class="s">.b {</span> <span class="p">animation-direction</span>: <span class="v">reverse</span>; <span class="s">}</span>
+<span class="s">.c {</span> <span class="p">animation-direction</span>: <span class="v">alternate</span>; <span class="s">}</span>
+
+<span class="c">/* Las tres con iteration-count: 2 */</span></pre>
+    <div class="vivo">
+      <div class="carriles" id="dirs">
+        <div class="carril"><span class="et">normal</span><div class="ficha" data-dir="normal">1</div></div>
+        <div class="carril"><span class="et">reverse</span><div class="ficha" data-dir="reverse">2</div></div>
+        <div class="carril"><span class="et">alternate</span><div class="ficha" data-dir="alternate">3</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-dirs>Correr las tres</button>
+    <button type="button" data-reset>Regresar todo</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    <code>reverse</code> recorre los keyframes al revés. <code>alternate</code> va y viene:
+    la segunda repetición se reproduce de regreso.</p>
+</article>
+
+<!-- ===================================================== 9 -->
+<article class="cosa" id="veces">
+  <div class="cab">
+    <h2>iteration-count y play-state <small>cuántas veces, y pausar</small></h2>
+    <p class="idea">Una animación se puede pausar sin quitarla, y sigue desde donde iba.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.giro {</span>
+  <span class="p">animation</span>: <span class="v">girar 2s linear infinite</span>;
+<span class="s">}</span>
+
+<span class="s">.giro.pausada {</span>
+  <span class="p">animation-play-state</span>: <span class="v">paused</span>;
+<span class="s">}</span>
+
+<span class="c">/* infinite es literal: no se detiene
+   sola nunca. Úsalo con cuidado. */</span></pre>
+    <div class="vivo">
+      <div class="caja" id="caja-giro" style="border-radius:50%;width:100px;height:100px">∞</div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-giro>Arrancar</button>
+    <button type="button" data-pausa aria-pressed="false">Pausar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Al pausar no regresa al inicio: se queda donde iba. Al soltar, sigue desde ahí.</p>
+</article>
+
+<!-- ===================================================== 10 -->
+<article class="cosa" id="alto">
+  <div class="cab">
+    <h2>El panel que se despliega <small>por qué <code>height: auto</code> no transiciona</small></h2>
+    <p class="idea">No se puede interpolar hacia un valor que el navegador aún no conoce.</p>
+  </div>
+  <div class="par">
+<pre><span class="c">/* NO funciona: auto no es un número */</span>
+<span class="s">.panel {</span> <span class="p">height</span>: <span class="v">0</span>; <span class="p">transition</span>: <span class="v">height .5s</span>; <span class="s">}</span>
+<span class="s">.panel.abierto {</span> <span class="p">height</span>: <span class="m">auto</span>; <span class="s">}</span>
+
+<span class="c">/* SÍ funciona, y es la forma moderna */</span>
+<span class="s">.panel {</span>
+  <span class="p">display</span>: <span class="v">grid</span>;
+  <span class="p">grid-template-rows</span>: <span class="v">0fr</span>;
+  <span class="p">transition</span>: <span class="v">grid-template-rows .5s ease</span>;
+  <span class="p">overflow</span>: <span class="v">hidden</span>;
+<span class="s">}</span>
+<span class="s">.panel.abierto {</span> <span class="p">grid-template-rows</span>: <span class="v">1fr</span>; <span class="s">}</span>
+<span class="s">.panel > div {</span> <span class="p">min-height</span>: <span class="v">0</span>; <span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="tarjetita">
+        <h4>Isla Espíritu Santo</h4>
+        <p>Navegación de día completo.</p>
+        <div class="panel" id="panel-1"><div>
+          <p>Incluye visita a la colonia de lobos marinos y tiempo de nado libre.
+             Salidas todo el año desde La Paz.</p>
+        </div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-panel>Abrir y cerrar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    El truco es transicionar una fracción de rejilla, que sí es un número, en vez de una
+    altura desconocida. <code>min-height: 0</code> en el hijo no es opcional.</p>
+</article>
+
+<!-- ===================================================== 11 -->
+<article class="cosa" id="rm">
+  <div class="cab">
+    <h2>prefers-reduced-motion <small>la condición que sí se revisa</small></h2>
+    <p class="idea">Hay quien se marea con esto. No es un detalle: es parte de la entrega.</p>
+  </div>
+  <div class="par">
+<pre><span class="c">/* Lo mínimo que se acepta */</span>
+<span class="s">@media (prefers-reduced-motion: reduce) {</span>
+  <span class="s">.tarjeta, .panel, .bola {</span>
+    <span class="p">transition</span>: <span class="v">none</span>;
+    <span class="p">animation</span>: <span class="v">none</span>;
+  <span class="s">}</span>
+<span class="s">}</span>
+
+<span class="c">/* Mejor todavía: no quitar el efecto,
+   cambiarlo por uno que no desplaza */</span>
+<span class="s">@media (prefers-reduced-motion: reduce) {</span>
+  <span class="s">.tarjeta {</span>
+    <span class="p">transition</span>: <span class="v">opacity .2s</span>;
+    <span class="p">transform</span>: <span class="v">none</span>;
+  <span class="s">}</span>
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div style="text-align:center">
+        <div class="caja" id="caja-rm" style="margin:0 auto">prueba</div>
+        <p style="font-size:.9rem;color:var(--grisc);margin:1rem 0 0;max-width:420px">
+          Esta página respeta la preferencia. Si la activas en Windows y recargas,
+          esta caja deja de moverse.</p>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-rm>Mover la caja</button>
+    <span style="font-size:.9rem;color:var(--grisc)">
+      Configuración › Accesibilidad › Efectos visuales › Efectos de animación
+    </span>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Es una consulta de medios como cualquier otra. El sistema operativo la responde, y el
+    navegador se la pasa a tu CSS.</p>
+</article>
+
+</main>
+
+<script>
+(function () {
+  const $ = (s, c) => (c || document).querySelector(s);
+  const $$ = (s, c) => [...(c || document).querySelectorAll(s)];
+
+  // ---------- 1. la transición básica ----------
+  $$('[data-disparar]').forEach(b => b.addEventListener('click', () => {
+    const el = document.getElementById(b.dataset.disparar);
+    el.style.transition = 'transform .6s ease';
+    el.style.transform = el.style.transform ? '' : 'translateX(420px)';
+  }));
+
+  // ---------- 2. dónde va la transición ----------
+  const fBien = $('#f-bien'), fMal = $('#f-mal');
+  $('[data-ida]').addEventListener('click', () => {
+    fBien.style.transition = 'transform .5s ease';
+    fMal.style.transition = 'transform .5s ease';   // existe solo durante la ida
+    fBien.style.transform = 'translateX(300px)';
+    fMal.style.transform = 'translateX(300px)';
+  });
+  $('[data-vuelta]').addEventListener('click', () => {
+    fBien.style.transition = 'transform .5s ease';
+    fMal.style.transition = 'none';                 // al volver ya no hay transición
+    fBien.style.transform = '';
+    fMal.style.transform = '';
+  });
+
+  // ---------- 3. curvas ----------
+  $('[data-curvas]').addEventListener('click', () => {
+    $$('#curvas .ficha').forEach(f => {
+      f.style.transition = 'transform 1.4s ' + f.dataset.curva;
+      f.style.transform = f.style.transform ? '' : 'translateX(380px)';
+    });
+  });
+
+  // ---------- 4. duración y escalonado ----------
+  const rangoDur = $('#rango-dur'), outDur = $('#out-dur'), txtDur = $('#txt-dur');
+  const seg = () => (rangoDur.value / 1000).toString().replace(/^0/, '') + 's';
+  rangoDur.addEventListener('input', () => {
+    outDur.textContent = seg();
+    txtDur.textContent = seg();
+  });
+  $('[data-escalon]').addEventListener('click', () => {
+    $$('#escalon .ficha').forEach((f, i) => {
+      f.style.transition = `transform ${rangoDur.value}ms ease ${i * 150}ms`;
+      f.style.transform = f.style.transform ? '' : 'translateX(380px)';
+    });
+  });
+
+  // ---------- 5. property contra all ----------
+  const cExp = $('#caja-exp'), cAll = $('#caja-all');
+  cExp.style.transition = 'transform .5s ease';
+  cAll.style.transition = 'all .5s ease';
+  $('[data-property]').addEventListener('click', () => {
+    const puesto = cExp.style.transform !== '';
+    [cExp, cAll].forEach(c => {
+      c.style.transform = puesto ? '' : 'translateX(70px) scale(1.15)';
+      c.style.background = puesto ? '' : '#7a4a9e';
+      c.style.borderRadius = puesto ? '' : '50%';
+    });
+    if (puesto) { cAll.style.background = 'var(--acento)'; }
+  });
+
+  // ---------- 6. keyframes ----------
+  const hoja = document.createElement('style');
+  hoja.textContent = `
+    @keyframes latido { 0%{transform:scale(1)} 30%{transform:scale(1.25)}
+                        60%{transform:scale(.95)} 100%{transform:scale(1)} }
+    @keyframes correr { from{transform:translateX(0)} to{transform:translateX(400px)} }
+    @keyframes girar  { from{transform:rotate(0)} to{transform:rotate(360deg)} }`;
+  document.head.appendChild(hoja);
+
+  const cKf = $('#caja-kf');
+  $('[data-latido]').addEventListener('click', () => {
+    cKf.style.animation = 'none';
+    void cKf.offsetWidth;                 // reinicia la animación
+    cKf.style.animation = 'latido 1.2s ease-in-out';
+  });
+
+  // ---------- 7. fill-mode ----------
+  $('[data-fills]').addEventListener('click', () => {
+    $$('#fills .ficha').forEach(f => {
+      f.style.animation = 'none';
+      void f.offsetWidth;
+      f.style.animation = `correr 1.4s ease 1s ${f.dataset.fill}`;
+    });
+  });
+
+  // ---------- 8. direction ----------
+  $('[data-dirs]').addEventListener('click', () => {
+    $$('#dirs .ficha').forEach(f => {
+      f.style.animation = 'none';
+      void f.offsetWidth;
+      f.style.animation = `correr 1.2s ease 0s 2 ${f.dataset.dir} both`;
+    });
+  });
+
+  // ---------- 9. iteration y play-state ----------
+  const giro = $('#caja-giro'), btnPausa = $('[data-pausa]');
+  $('[data-giro]').addEventListener('click', () => {
+    giro.style.animation = 'girar 2s linear infinite';
+    giro.style.animationPlayState = 'running';
+    btnPausa.setAttribute('aria-pressed', 'false');
+    btnPausa.textContent = 'Pausar';
+  });
+  btnPausa.addEventListener('click', () => {
+    const pausada = btnPausa.getAttribute('aria-pressed') === 'true';
+    btnPausa.setAttribute('aria-pressed', String(!pausada));
+    giro.style.animationPlayState = pausada ? 'running' : 'paused';
+    btnPausa.textContent = pausada ? 'Pausar' : 'Continuar';
+  });
+
+  // ---------- 10. el panel ----------
+  $('[data-panel]').addEventListener('click', () => {
+    $('#panel-1').classList.toggle('abierto');
+  });
+
+  // ---------- 11. movimiento reducido ----------
+  const cRm = $('#caja-rm');
+  cRm.style.transition = 'transform .6s ease';
+  $('[data-rm]').addEventListener('click', () => {
+    cRm.style.transform = cRm.style.transform ? '' : 'translateX(160px) rotate(20deg)';
+  });
+
+  // ---------- regresar todo ----------
+  $$('[data-reset]').forEach(b => b.addEventListener('click', () => {
+    $$('.ficha, .caja, .bola').forEach(el => {
+      el.style.transform = '';
+      el.style.animation = '';
+    });
+    cAll.style.background = 'var(--acento)';
+    cExp.style.background = '';
+    [cExp, cAll].forEach(c => { c.style.borderRadius = ''; });
+  }));
+})();
+</script>
+
+</body>
+</html>

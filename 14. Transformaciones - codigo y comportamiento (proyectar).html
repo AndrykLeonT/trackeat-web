@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transformaciones — código y comportamiento</title>
+<style>
+  /* ---------------------------------------------------------------
+     PARA PROYECTAR. Tipografía grande, contraste alto, sin nada que
+     no se vea desde la última fila. No trae ninguna indicación para
+     el docente: eso vive en la guía de conducción.
+     --------------------------------------------------------------- */
+  :root{
+    --azul:#1f3b63; --azul2:#2e5e8c; --acento:#c0274a; --verde:#1a7a4e;
+    --gris:#33383f; --grisc:#7b828b; --linea:#dbe3ee; --fondo:#f7f9fc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fondo);color:var(--gris);
+       font:19px/1.5 Calibri,"Segoe UI",system-ui,sans-serif;padding-bottom:5rem}
+
+  header.top{background:var(--azul);color:#fff;padding:1.1rem clamp(1rem,3vw,2.4rem);
+             position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(31,59,99,.25)}
+  header.top p{margin:0 0 .2rem;color:#a8bed8;font-size:.72rem;letter-spacing:.09em}
+  header.top h1{margin:0;font-size:clamp(1.3rem,2.6vw,1.7rem)}
+  nav{margin-top:.6rem;display:flex;flex-wrap:wrap;gap:.35rem}
+  nav a{color:#fff;background:rgba(255,255,255,.14);text-decoration:none;
+        padding:.3rem .65rem;border-radius:5px;font-size:.78rem}
+  nav a:hover{background:rgba(255,255,255,.3)}
+
+  main{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.4rem)}
+
+  .cosa{background:#fff;border:1px solid var(--linea);border-radius:12px;
+        margin:1.8rem 0;overflow:hidden;box-shadow:0 1px 3px rgba(31,59,99,.05)}
+  .cosa > .cab{padding:1rem 1.4rem;border-bottom:1px solid var(--linea)}
+  .cosa h2{margin:0;color:var(--azul);font-size:1.5rem;
+           font-family:Consolas,monospace;letter-spacing:-.01em}
+  .cosa h2 small{font-family:Calibri,"Segoe UI",sans-serif;color:var(--grisc);
+                 font-size:1rem;font-weight:400;margin-left:.6rem}
+  .idea{margin:.45rem 0 0;font-size:1.02rem;color:var(--azul2);font-weight:600}
+
+  .par{display:grid;grid-template-columns:1fr;gap:0}
+  @media(min-width:900px){ .par{grid-template-columns:minmax(0,420px) minmax(0,1fr)} }
+
+  pre{margin:0;padding:1.1rem 1.3rem;background:#16283f;color:#e6eef8;
+      font:16px/1.65 Consolas,"Cascadia Mono",monospace;overflow-x:auto}
+  pre .p{color:#7fd1a8}          /* propiedad */
+  pre .v{color:#ffcf7a}          /* valor */
+  pre .s{color:#8fa8c4}          /* selector y llaves */
+  pre .c{color:#6a8099;font-style:italic}   /* comentario */
+  pre .m{background:#3d2230;color:#ff9db0;border-radius:3px;padding:0 .2rem}
+
+  .vivo{padding:1.6rem 1.4rem;display:grid;place-items:center;min-height:230px;
+        background:repeating-linear-gradient(45deg,#fbfcfe,#fbfcfe 14px,#f4f7fb 14px,#f4f7fb 28px)}
+
+  .mandos{padding:.9rem 1.4rem;border-top:1px solid var(--linea);background:#f4f7fb;
+          display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+  button{font:600 15px/1 Calibri,"Segoe UI",sans-serif;padding:.6rem 1.1rem;
+         border:1px solid var(--azul2);background:#fff;color:var(--azul);
+         border-radius:6px;cursor:pointer}
+  button:hover{background:var(--azul2);color:#fff}
+  button[aria-pressed="true"]{background:var(--acento);border-color:var(--acento);color:#fff}
+  label.desliza{display:flex;align-items:center;gap:.6rem;font-size:.95rem;font-weight:600;
+                color:var(--azul)}
+  input[type=range]{width:230px}
+  output{font:700 16px/1 Consolas,monospace;color:var(--acento);min-width:5.5rem}
+
+  .observa{margin:0;padding:.9rem 1.4rem;background:#eef7f2;border-top:1px solid #cfe6da;
+           font-size:1rem;color:#0f5334}
+  .observa b{color:var(--verde);letter-spacing:.05em;font-size:.75rem;
+             display:block;text-transform:uppercase;margin-bottom:.2rem}
+
+  /* --------------------------- piezas de demostración --------------------------- */
+  .pista{display:flex;align-items:center;gap:10px;width:100%;max-width:520px;
+         padding:14px;border:2px dashed #c3cfdf;border-radius:10px;background:#fff}
+  .caja{width:96px;height:70px;border-radius:8px;display:grid;place-items:center;
+        color:#fff;font-weight:700;font-size:.9rem;flex:none;
+        background:var(--azul2);transition:transform .6s ease, margin-left .6s ease}
+  .vecino{width:70px;height:70px;border-radius:8px;background:#dfe6ef;flex:none;
+          display:grid;place-items:center;color:#7b828b;font-size:.8rem;font-weight:700;
+          transition:transform .6s ease}
+
+  .rejilla3{display:flex;gap:26px;flex-wrap:wrap;justify-content:center}
+
+  .escena{perspective:var(--persp,800px);width:190px;height:250px}
+  .escena.suelta{perspective:none}
+  .tarjeta{position:relative;width:100%;height:100%;transition:transform .9s ease;
+           transform-style:preserve-3d}
+  .tarjeta.plana{transform-style:flat}
+  .tarjeta.girada{transform:rotateY(180deg)}
+  .cara{position:absolute;inset:0;border-radius:12px;display:grid;place-items:center;
+        text-align:center;padding:14px;font-weight:700;color:#fff;
+        backface-visibility:hidden;font-size:1.05rem}
+  .cara.sinback{backface-visibility:visible}
+  .cara.frente{background:linear-gradient(150deg,#2e5e8c,#1f3b63)}
+  .cara.atras{background:linear-gradient(150deg,#1a7a4e,#125838);transform:rotateY(180deg)}
+
+  .cubo{width:110px;height:110px;background:var(--azul2);border-radius:10px;
+        display:grid;place-items:center;color:#fff;font-weight:700;
+        transition:transform .7s ease}
+  .marca-origen{position:relative}
+  .marca-origen::after{content:"";position:absolute;width:12px;height:12px;
+        background:var(--acento);border:2px solid #fff;border-radius:50%;
+        left:var(--ox,50%);top:var(--oy,50%);transform:translate(-50%,-50%);
+        box-shadow:0 0 0 2px var(--acento)}
+
+  .fila-orden{display:flex;gap:40px;flex-wrap:wrap;justify-content:center}
+  .orden-uno{text-align:center}
+  .orden-uno h4{margin:0 0 .5rem;font:700 .85rem/1.3 Consolas,monospace;color:var(--azul)}
+  .orden-uno .pistita{width:210px;height:150px;border:2px dashed #c3cfdf;border-radius:10px;
+        background:#fff;display:grid;place-items:center;position:relative;overflow:hidden}
+  .movil{width:60px;height:44px;background:var(--acento);border-radius:6px;
+         transition:transform .8s ease;display:grid;place-items:center;color:#fff;
+         font-size:.75rem;font-weight:700}
+
+  .leyenda{font-size:.85rem;color:var(--grisc);margin-top:.5rem;text-align:center}
+
+  @media (prefers-reduced-motion: reduce){
+    .caja,.vecino,.tarjeta,.cubo,.movil{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <p>APLICACIONES WEB II · DAM-2306 · UNIDAD 1 · SUBTEMA 1.2</p>
+  <h1>Transformaciones 2D y 3D — código y comportamiento</h1>
+  <nav>
+    <a href="#translate">translate</a>
+    <a href="#scale">scale</a>
+    <a href="#rotate">rotate + origin</a>
+    <a href="#skew">skew</a>
+    <a href="#orden">el orden</a>
+    <a href="#z">el eje Z</a>
+    <a href="#persp">perspective</a>
+    <a href="#preserve">preserve-3d</a>
+    <a href="#backface">backface-visibility</a>
+    <a href="#sueltas">propiedades sueltas</a>
+  </nav>
+</header>
+
+<main>
+
+<!-- ================================================== 1. translate -->
+<article class="cosa" id="translate">
+  <div class="cab">
+    <h2>translate() <small>mover</small></h2>
+    <p class="idea">La caja se mueve por encima. Su lugar en la fila sigue reservado.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.caja {</span>
+  <span class="p">transform</span>: <span class="v">translateX(150px)</span>;
+<span class="s">}</span>
+
+<span class="c">/* Comparación */</span>
+<span class="s">.caja {</span>
+  <span class="p">margin-left</span>: <span class="v">150px</span>;
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div style="display:grid;gap:16px;width:100%">
+        <div>
+          <div class="pista" id="pista-t">
+            <div class="caja" id="caja-t">translate</div>
+            <div class="vecino">vecino</div>
+            <div class="vecino">vecino</div>
+          </div>
+          <p class="leyenda">con <code>transform: translateX()</code></p>
+        </div>
+        <div>
+          <div class="pista" id="pista-m">
+            <div class="caja" id="caja-m" style="background:var(--acento)">margin</div>
+            <div class="vecino">vecino</div>
+            <div class="vecino">vecino</div>
+          </div>
+          <p class="leyenda">con <code>margin-left</code></p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-mover>Mover las dos</button>
+    <button type="button" data-regresar>Regresar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Arriba los vecinos no se mueven ni un píxel y la caja pasa por encima de ellos.
+    Abajo los vecinos salen empujados: el navegador tuvo que recalcular dónde va cada uno.</p>
+</article>
+
+<!-- ================================================== 2. scale -->
+<article class="cosa" id="scale">
+  <div class="cab">
+    <h2>scale() <small>agrandar o encoger</small></h2>
+    <p class="idea">Crece hacia todos lados desde el centro, y nadie le hace espacio.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.caja {</span>
+  <span class="p">transform</span>: <span class="v">scale(1.8)</span>;
+<span class="s">}</span>
+
+<span class="c">/* El porcentaje de translate es del
+   PROPIO elemento, no del padre.
+   Por eso este truco centra: */</span>
+<span class="s">.centrada {</span>
+  <span class="p">position</span>: <span class="v">absolute</span>;
+  <span class="p">top</span>: <span class="v">50%</span>; <span class="p">left</span>: <span class="v">50%</span>;
+  <span class="p">transform</span>: <span class="v">translate(-50%, -50%)</span>;
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="pista" style="max-width:460px">
+        <div class="caja" id="caja-s">scale</div>
+        <div class="vecino">vecino</div>
+        <div class="vecino">vecino</div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-escala>Escalar</button>
+    <button type="button" data-regresar>Regresar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    La caja crece y se encima sobre los vecinos. El espacio que ocupaba antes es el
+    mismo: para la maquetación no cambió de tamaño.</p>
+</article>
+
+<!-- ================================================== 3. rotate + origin -->
+<article class="cosa" id="rotate">
+  <div class="cab">
+    <h2>rotate() + transform-origin <small>girar, y desde dónde</small></h2>
+    <p class="idea">El pivote no cambia cuánto gira. Cambia qué gesto es.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.cubo {</span>
+  <span class="p">transform-origin</span>: <span class="v" id="txt-origen">50% 50%</span>;
+  <span class="p">transform</span>: <span class="v">rotate(45deg)</span>;
+<span class="s">}</span>
+
+<span class="c">/* Por omisión el pivote es el centro.
+   El punto rojo lo marca. */</span></pre>
+    <div class="vivo">
+      <div class="cubo marca-origen" id="cubo-r">gira</div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-origen="50% 50%" aria-pressed="true">centro — moneda</button>
+    <button type="button" data-origen="0% 50%" aria-pressed="false">borde izquierdo — puerta</button>
+    <button type="button" data-origen="50% 0%" aria-pressed="false">arriba — péndulo</button>
+    <button type="button" data-girar-cubo>Girar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    El mismo <code>rotate(45deg)</code> produce tres movimientos que se sienten
+    completamente distintos. Lo único que cambió fue dónde está el punto rojo.</p>
+</article>
+
+<!-- ================================================== 4. skew -->
+<article class="cosa" id="skew">
+  <div class="cab">
+    <h2>skew() <small>inclinar</small></h2>
+    <p class="idea">Deforma la caja empujando un eje. El menos usado de los cuatro.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.cubo {</span>
+  <span class="p">transform</span>: <span class="v">skewX(20deg)</span>;
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="cubo" id="cubo-k">skew</div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-skew="skewX(20deg)">skewX(20deg)</button>
+    <button type="button" data-skew="skewY(20deg)">skewY(20deg)</button>
+    <button type="button" data-skew="none">Regresar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    El texto de adentro se inclina con la caja: la transformación se aplica al
+    elemento completo y a todo su contenido.</p>
+</article>
+
+<!-- ================================================== 5. el orden -->
+<article class="cosa" id="orden">
+  <div class="cab">
+    <h2>El orden de las funciones <small>no se suman: se encadenan</small></h2>
+    <p class="idea">Las mismas dos funciones, invertidas, dan resultados distintos.</p>
+  </div>
+  <div class="par">
+<pre><span class="c">/* Mueve, y luego gira sobre sí misma */</span>
+<span class="s">.a {</span>
+  <span class="p">transform</span>: <span class="v">translateX(60px) rotate(45deg)</span>;
+<span class="s">}</span>
+
+<span class="c">/* Gira el sistema de coordenadas, y
+   luego mueve sobre el eje ya inclinado */</span>
+<span class="s">.b {</span>
+  <span class="p">transform</span>: <span class="v">rotate(45deg) translateX(60px)</span>;
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="fila-orden">
+        <div class="orden-uno">
+          <h4>translateX() → rotate()</h4>
+          <div class="pistita"><div class="movil" id="mov-a">A</div></div>
+        </div>
+        <div class="orden-uno">
+          <h4>rotate() → translateX()</h4>
+          <div class="pistita"><div class="movil" id="mov-b">B</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-orden>Aplicar las dos</button>
+    <button type="button" data-regresar>Regresar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    A queda a la derecha, girada sobre sí misma. B sale en diagonal, porque cuando le
+    tocó moverse el eje horizontal ya estaba inclinado 45 grados.</p>
+</article>
+
+<!-- ================================================== 6. el eje Z -->
+<article class="cosa" id="z">
+  <div class="cab">
+    <h2>rotateY() sin perspectiva <small>el eje Z sale de la pantalla</small></h2>
+    <p class="idea">Girar en 3D sin punto de fuga no se ve profundo: se ve aplastado.</p>
+  </div>
+  <div class="par">
+<pre><span class="c">/* El padre NO tiene perspective */</span>
+<span class="s">.escena {</span>
+  <span class="m">/* perspective: 800px; */</span>
+<span class="s">}</span>
+
+<span class="s">.tarjeta {</span>
+  <span class="p">transform</span>: <span class="v">rotateY(180deg)</span>;
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="escena suelta" id="escena-z">
+        <div class="tarjeta" id="tarjeta-z">
+          <div class="cara frente">sin perspectiva</div>
+          <div class="cara atras">reverso</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-girar="tarjeta-z">Girar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    El lado que se aleja no se ve más chico, así que el ojo no lee profundidad.
+    Parece que la tarjeta se comprime horizontalmente en vez de girar.</p>
+</article>
+
+<!-- ================================================== 7. perspective -->
+<article class="cosa" id="persp">
+  <div class="cab">
+    <h2>perspective <small>la distancia del ojo a la pantalla</small></h2>
+    <p class="idea">Va en el padre. Entre más chico el valor, más dramático el efecto.</p>
+  </div>
+  <div class="par">
+<pre><span class="c">/* En el PADRE: punto de fuga
+   compartido por todos los hijos */</span>
+<span class="s">.escena {</span>
+  <span class="p">perspective</span>: <span class="v" id="txt-persp">800px</span>;
+<span class="s">}</span>
+
+<span class="s">.escena .tarjeta {</span>
+  <span class="p">transform</span>: <span class="v">rotateY(180deg)</span>;
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="rejilla3" id="grupo-persp">
+        <div class="escena"><div class="tarjeta" data-tarj>
+          <div class="cara frente">una</div><div class="cara atras">1</div></div></div>
+        <div class="escena"><div class="tarjeta" data-tarj>
+          <div class="cara frente">dos</div><div class="cara atras">2</div></div></div>
+        <div class="escena"><div class="tarjeta" data-tarj>
+          <div class="cara frente">tres</div><div class="cara atras">3</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <label class="desliza">
+      perspective
+      <input type="range" id="rango-persp" min="150" max="2400" step="50" value="800">
+      <output id="out-persp">800px</output>
+    </label>
+    <button type="button" data-girar-grupo>Girar las tres</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Baja el deslizador a 200 y el giro se vuelve exagerado, como si tuvieras la cara
+    pegada al objeto. Súbelo a 2400 y casi desaparece la profundidad.</p>
+</article>
+
+<!-- ================================================== 8. preserve-3d -->
+<article class="cosa" id="preserve">
+  <div class="cab">
+    <h2>transform-style: preserve-3d <small>mantener a los hijos en 3D</small></h2>
+    <p class="idea">Sin esto, los hijos se aplanan contra el plano del padre.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.escena {</span> <span class="p">perspective</span>: <span class="v">800px</span>; <span class="s">}</span>
+
+<span class="s">.tarjeta {</span>
+  <span class="p">transform-style</span>: <span class="v" id="txt-preserve">preserve-3d</span>;
+  <span class="p">transform</span>: <span class="v">rotateY(180deg)</span>;
+<span class="s">}</span>
+
+<span class="s">.cara.atras {</span>
+  <span class="p">transform</span>: <span class="v">rotateY(180deg)</span>;
+<span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="escena">
+        <div class="tarjeta" id="tarjeta-p">
+          <div class="cara frente">preserve-3d</div>
+          <div class="cara atras">la cara de atrás</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-preserve aria-pressed="true">preserve-3d activo</button>
+    <button type="button" data-girar="tarjeta-p">Girar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Con <code>flat</code>, la cara de atrás deja de existir en el espacio 3D y ya no
+    aparece al girar, aunque el código de esa cara no se tocó.</p>
+</article>
+
+<!-- ================================================== 9. backface -->
+<article class="cosa" id="backface">
+  <div class="cab">
+    <h2>backface-visibility <small>la cara de atrás es un espejo</small></h2>
+    <p class="idea">Si no la ocultas, ves el reverso del propio elemento, invertido.</p>
+  </div>
+  <div class="par">
+<pre><span class="s">.cara {</span>
+  <span class="p">backface-visibility</span>: <span class="v" id="txt-back">hidden</span>;
+<span class="s">}</span>
+
+<span class="c">/* Con visible se alcanza a ver el
+   texto de la cara del frente
+   escrito al revés. */</span></pre>
+    <div class="vivo">
+      <div class="escena">
+        <div class="tarjeta" id="tarjeta-b">
+          <div class="cara frente">TEXTO DEL FRENTE</div>
+          <div class="cara atras">y este es el de atrás</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mandos">
+    <button type="button" data-back aria-pressed="true">hidden</button>
+    <button type="button" data-girar="tarjeta-b">Girar</button>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    Con <code>visible</code>, al girar se ve el texto del frente reflejado. Es el
+    mismo elemento visto por detrás, como una hoja de papel a contraluz.</p>
+</article>
+
+<!-- ================================================== 10. sueltas -->
+<article class="cosa" id="sueltas">
+  <div class="cab">
+    <h2>translate · rotate · scale <small>como propiedades sueltas</small></h2>
+    <p class="idea">Con <code>transform</code>, la segunda regla pisa a la primera. Con las propiedades sueltas, no.</p>
+  </div>
+  <div class="par">
+<pre><span class="c">/* PIERDE el scale al pasar el puntero */</span>
+<span class="s">.caja {</span>       <span class="p">transform</span>: <span class="v">scale(1.4)</span>; <span class="s">}</span>
+<span class="s">.caja:hover {</span> <span class="p">transform</span>: <span class="v">rotate(15deg)</span>; <span class="s">}</span>
+
+<span class="c">/* CONSERVA las dos */</span>
+<span class="s">.caja {</span>       <span class="p">scale</span>: <span class="v">1.4</span>; <span class="s">}</span>
+<span class="s">.caja:hover {</span> <span class="p">rotate</span>: <span class="v">15deg</span>; <span class="s">}</span></pre>
+    <div class="vivo">
+      <div class="fila-orden">
+        <div class="orden-uno">
+          <h4>transform (se pisa)</h4>
+          <div class="pistita"><div class="cubo" id="cubo-x" style="width:80px;height:80px;font-size:.8rem">pásame el puntero</div></div>
+        </div>
+        <div class="orden-uno">
+          <h4>propiedades sueltas</h4>
+          <div class="pistita"><div class="cubo" id="cubo-y" style="width:80px;height:80px;font-size:.8rem;background:var(--verde)">pásame el puntero</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="observa"><b>Qué pasa</b>
+    El de la izquierda pierde el tamaño al girar, porque la regla de <code>:hover</code>
+    reemplaza la declaración completa. El de la derecha conserva las dos cosas.</p>
+</article>
+
+</main>
+
+<script>
+/* Todo se maneja tocando clases y variables CSS, para que el código que se
+   proyecta a la izquierda sea siempre el que de verdad está aplicado. */
+(function () {
+  const $ = (s, c) => (c || document).querySelector(s);
+  const $$ = (s, c) => [...(c || document).querySelectorAll(s)];
+
+  // ---------- 1. translate contra margin ----------
+  const cajaT = $('#caja-t'), cajaM = $('#caja-m');
+  $$('[data-mover]').forEach(b => b.addEventListener('click', () => {
+    cajaT.style.transform = 'translateX(150px)';
+    cajaM.style.marginLeft = '150px';
+  }));
+
+  // ---------- 2. scale ----------
+  const cajaS = $('#caja-s');
+  $$('[data-escala]').forEach(b => b.addEventListener('click', () => {
+    cajaS.style.transform = 'scale(1.8)';
+  }));
+
+  // ---------- regresar, común ----------
+  $$('[data-regresar]').forEach(b => b.addEventListener('click', () => {
+    cajaT.style.transform = '';
+    cajaM.style.marginLeft = '';
+    cajaS.style.transform = '';
+    movA.style.transform = '';
+    movB.style.transform = '';
+  }));
+
+  // ---------- 3. rotate + origin ----------
+  const cuboR = $('#cubo-r'), txtOrigen = $('#txt-origen');
+  let giradoR = false;
+  $$('[data-origen]').forEach(b => b.addEventListener('click', () => {
+    const val = b.dataset.origen;
+    $$('[data-origen]').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    cuboR.style.transformOrigin = val;
+    txtOrigen.textContent = val;
+    const [ox, oy] = val.split(' ');
+    cuboR.style.setProperty('--ox', ox);
+    cuboR.style.setProperty('--oy', oy);
+  }));
+  $('[data-girar-cubo]').addEventListener('click', () => {
+    giradoR = !giradoR;
+    cuboR.style.transform = giradoR ? 'rotate(45deg)' : '';
+  });
+
+  // ---------- 4. skew ----------
+  const cuboK = $('#cubo-k');
+  $$('[data-skew]').forEach(b => b.addEventListener('click', () => {
+    cuboK.style.transform = b.dataset.skew === 'none' ? '' : b.dataset.skew;
+  }));
+
+  // ---------- 5. el orden ----------
+  const movA = $('#mov-a'), movB = $('#mov-b');
+  $('[data-orden]').addEventListener('click', () => {
+    movA.style.transform = 'translateX(60px) rotate(45deg)';
+    movB.style.transform = 'rotate(45deg) translateX(60px)';
+  });
+
+  // ---------- 6, 8, 9. girar una tarjeta ----------
+  $$('[data-girar]').forEach(b => b.addEventListener('click', () => {
+    $('#' + b.dataset.girar).classList.toggle('girada');
+  }));
+
+  // ---------- 7. perspective ----------
+  const rango = $('#rango-persp'), out = $('#out-persp'), txtP = $('#txt-persp');
+  const grupo = $('#grupo-persp');
+  rango.addEventListener('input', () => {
+    const v = rango.value + 'px';
+    out.textContent = v;
+    txtP.textContent = v;
+    $$('.escena', grupo).forEach(e => e.style.setProperty('--persp', v));
+  });
+  $('[data-girar-grupo]').addEventListener('click', () => {
+    $$('[data-tarj]', grupo).forEach(t => t.classList.toggle('girada'));
+  });
+
+  // ---------- 8. preserve-3d ----------
+  const tarjP = $('#tarjeta-p'), btnP = $('[data-preserve]'), txtPre = $('#txt-preserve');
+  btnP.addEventListener('click', () => {
+    const activo = btnP.getAttribute('aria-pressed') === 'true';
+    btnP.setAttribute('aria-pressed', String(!activo));
+    tarjP.classList.toggle('plana', activo);
+    btnP.textContent = activo ? 'flat (aplanado)' : 'preserve-3d activo';
+    txtPre.textContent = activo ? 'flat' : 'preserve-3d';
+  });
+
+  // ---------- 9. backface-visibility ----------
+  const tarjB = $('#tarjeta-b'), btnB = $('[data-back]'), txtB = $('#txt-back');
+  btnB.addEventListener('click', () => {
+    const oculto = btnB.getAttribute('aria-pressed') === 'true';
+    btnB.setAttribute('aria-pressed', String(!oculto));
+    $$('.cara', tarjB).forEach(c => c.classList.toggle('sinback', oculto));
+    btnB.textContent = oculto ? 'visible' : 'hidden';
+    txtB.textContent = oculto ? 'visible' : 'hidden';
+  });
+
+  // ---------- 10. transform que se pisa contra propiedades sueltas ----------
+  const cx = $('#cubo-x'), cy = $('#cubo-y');
+  cx.style.transform = 'scale(1.4)';
+  cy.style.scale = '1.4';
+  cx.addEventListener('pointerenter', () => { cx.style.transform = 'rotate(15deg)'; });
+  cx.addEventListener('pointerleave', () => { cx.style.transform = 'scale(1.4)'; });
+  cy.addEventListener('pointerenter', () => { cy.style.rotate = '15deg'; });
+  cy.addEventListener('pointerleave', () => { cy.style.rotate = '0deg'; });
+})();
+</script>
+
+</body>
+</html>

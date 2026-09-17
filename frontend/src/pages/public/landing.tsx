@@ -1,15 +1,78 @@
 import { Head } from '@inertiajs/react';
-import logo from "../../assets/images/logo.png";
-import imgChef from "../../assets/images/chef.jpg";
+import { useEffect, useRef, useState } from 'react';
+import imgLogo from "../../assets/images/logo.png"
+import imgChef from "../../assets/images/chef.jpg"
+import imgAngie from "../../assets/images/angie.jpg"
+import imgAndryk from "../../assets/images/andryk.jpg"
+import imgOmar from "../../assets/images/omar.jpg"
+import imgDaniel from "../../assets/images/daniel.jpg"
+
+function useReveal<T extends HTMLElement>() {
+    const ref = useRef<T | null>(null);
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setVisible(true);
+                    observer.disconnect();
+                }
+            },
+            { threshold: 0.2 },
+        );
+
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
+    return { ref, visible };
+}
 
 export default function Landing() {
+    const queEs = useReveal<HTMLElement>();
+    const porQueUsar = useReveal<HTMLElement>();
+    const nosotros = useReveal<HTMLElement>();
+    const cta = useReveal<HTMLElement>();
+
+    const focoEncabezado =
+        'outline-none rounded-md transition-transform duration-200 focus-visible:scale-[1.02] focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:focus-visible:scale-100';
+
     return (
         <>
             <Head title="TrackEat" />
 
+            <style>{`
+                @keyframes entrada {
+                    0%   { opacity: 0; transform: translateY(24px); }
+                    30%  { opacity: 0.4; transform: translateY(16px); }
+                    70%  { opacity: 1; transform: translateY(-4px); }
+                    100% { opacity: 1; transform: translateY(0); }
+                }
+                .anim-entrada { opacity: 0; }
+                .anim-entrada-activa { animation: entrada 0.8s ease-out forwards; }
+
+                @keyframes resaltar {
+                    0%   { transform: translateY(0) scale(1); }
+                    30%  { transform: translateY(-10px) scale(1.03); }
+                    60%  { transform: translateY(-4px) scale(1.01); }
+                    100% { transform: translateY(-6px) scale(1.02); }
+                }
+                .li-resaltar:hover { animation: resaltar .45s ease-out forwards; }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .anim-entrada { opacity: 1; }
+                    .anim-entrada-activa { animation: none; }
+                    .li-resaltar:hover { animation: none; }
+                }
+            `}</style>
+
             <header className="border-b border-gray-200 bg-white">
                 <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-                    <img src={logo} alt="TrackEat" className="h-8 w-auto" />
+                    <img src={imgLogo} alt="TrackEat" className="h-8 w-auto" />
 
                     <nav aria-label="Secciones de la página">
                         <ul className="flex items-center gap-8 text-sm text-gray-600">
@@ -22,8 +85,8 @@ export default function Landing() {
             </header>
 
             <main>
-                {/* HERO */}
-                <section className="bg-white">
+                {/* HERO — se anima solo, al cargar */}
+                <section className="anim-entrada anim-entrada-activa bg-white">
                     <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-2">
                         <div>
                             <p className="mb-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -31,7 +94,10 @@ export default function Landing() {
                                 Sistema de gestión y comandas
                             </p>
 
-                            <h1 className="text-4xl font-bold leading-tight text-gray-900">
+                            <h1
+                                tabIndex={0}
+                                className={`text-4xl font-bold leading-tight text-gray-900 ${focoEncabezado}`}
+                            >
                                 Pedidos y seguimiento en tiempo real para restaurantes y food trucks.
                             </h1>
 
@@ -42,10 +108,7 @@ export default function Landing() {
                             </p>
 
                             <div className="mt-8 flex items-center gap-4">
-                                <a href="#" className="rounded-md bg-orange-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-orange-700">
-                                    Solicitar demostración
-                                </a>
-                                <a href="#que-es" className="rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                <a href="#que-es" className="rounded-md bg-orange-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-orange-700">
                                     Conocer más
                                 </a>
                             </div>
@@ -83,14 +146,23 @@ export default function Landing() {
                     </div>
                 </section>
 
-                {/* QUÉ ES TRACKEAT */}
-                <section id="que-es" className="bg-gray-50">
+                {/* QUÉ ES TRACKEAT — se anima al hacer scroll hasta aquí */}
+                <section
+                    id="que-es"
+                    ref={queEs.ref}
+                    className={`anim-entrada bg-gray-50 ${queEs.visible ? 'anim-entrada-activa' : ''}`}
+                >
                     <div className="mx-auto max-w-6xl px-6 py-20">
                         <p className="mb-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                             <span className="h-1.5 w-1.5 rounded-full bg-orange-600"></span>
                             Sistema integral
                         </p>
-                        <h2 className="text-3xl font-bold text-gray-900">¿Qué es TrackEat?</h2>
+                        <h2
+                            tabIndex={0}
+                            className={`text-3xl font-bold text-gray-900 ${focoEncabezado}`}
+                        >
+                            ¿Qué es TrackEat?
+                        </h2>
                         <p className="mt-4 max-w-2xl leading-relaxed text-gray-600">
                             TrackEat es un sistema integral de pedidos y gestión para restaurantes y
                             food trucks que conecta en tiempo real a comensales, meseros y equipo de
@@ -98,7 +170,7 @@ export default function Landing() {
                         </p>
 
                         <ul className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
-                            <li className="rounded-xl border border-gray-200 bg-white p-6">
+                            <li className="li-resaltar rounded-xl border border-gray-200 bg-white p-6">
                                 <div className="mb-4 h-10 w-10 rounded-lg bg-orange-50"></div>
                                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">01 / Menú digital</p>
                                 <h3 className="mt-2 font-semibold text-gray-900">Menú Digital Interactivo</h3>
@@ -111,7 +183,7 @@ export default function Landing() {
                                 <p className="text-xs uppercase tracking-wide text-gray-400">Acceso vía QR o terminal</p>
                             </li>
 
-                            <li className="rounded-xl border border-gray-200 bg-white p-6">
+                            <li className="li-resaltar rounded-xl border border-gray-200 bg-white p-6">
                                 <div className="mb-4 h-10 w-10 rounded-lg bg-orange-50"></div>
                                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">02 / Comandas</p>
                                 <h3 className="mt-2 font-semibold text-gray-900">Gestión Ágil de Comandas</h3>
@@ -124,7 +196,7 @@ export default function Landing() {
                                 <p className="text-xs uppercase tracking-wide text-gray-400">Cero extravíos de pedidos</p>
                             </li>
 
-                            <li className="rounded-xl border border-gray-200 bg-white p-6">
+                            <li className="li-resaltar rounded-xl border border-gray-200 bg-white p-6">
                                 <div className="mb-4 h-10 w-10 rounded-lg bg-orange-50"></div>
                                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">03 / Tiempo real</p>
                                 <h3 className="mt-2 font-semibold text-gray-900">Monitoreo en Tiempo Real</h3>
@@ -140,15 +212,24 @@ export default function Landing() {
                     </div>
                 </section>
 
-                {/* POR QUÉ USAR TRACKEAT */}
-                <section id="por-que-usar" className="bg-white">
+                {/* POR QUÉ USAR TRACKEAT — se anima al hacer scroll hasta aquí */}
+                <section
+                    id="por-que-usar"
+                    ref={porQueUsar.ref}
+                    className={`anim-entrada bg-gray-50 ${porQueUsar.visible ? 'anim-entrada-activa' : ''}`}
+                >
                     <div className="mx-auto max-w-6xl px-6 py-20">
                         <div className="rounded-2xl border border-gray-200 bg-white p-10 shadow-sm">
                             <p className="mb-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-orange-600">
                                 <span className="h-1.5 w-1.5 rounded-full bg-orange-600"></span>
                                 Beneficios clave
                             </p>
-                            <h2 className="text-2xl font-bold text-gray-900">¿Por qué usar TrackEat?</h2>
+                            <h2
+                                tabIndex={0}
+                                className={`text-2xl font-bold text-gray-900 ${focoEncabezado}`}
+                            >
+                                ¿Por qué usar TrackEat?
+                            </h2>
                             <p className="mt-3 max-w-2xl leading-relaxed text-gray-600">
                                 Una plataforma pensada para responder a las exigencias operativas
                                 diarias de negocios gastronómicos modernos.
@@ -190,14 +271,23 @@ export default function Landing() {
                     </div>
                 </section>
 
-                {/* ACERCA DE NOSOTROS */}
-                <section id="nosotros" className="bg-gray-50">
+                {/* ACERCA DE NOSOTROS — se anima al hacer scroll, tarjetas con flip */}
+                <section
+                    id="nosotros"
+                    ref={nosotros.ref}
+                    className={`anim-entrada bg-gray-50 ${nosotros.visible ? 'anim-entrada-activa' : ''}`}
+                >
                     <div className="mx-auto max-w-6xl px-6 py-20">
                         <p className="mb-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                             <span className="h-1.5 w-1.5 rounded-full bg-orange-600"></span>
                             Equipo de desarrollo
                         </p>
-                        <h2 className="text-3xl font-bold text-gray-900">Acerca de nosotros</h2>
+                        <h2
+                            tabIndex={0}
+                            className={`text-3xl font-bold text-gray-900 ${focoEncabezado}`}
+                        >
+                            Acerca de nosotros
+                        </h2>
                         <p className="mt-4 max-w-2xl leading-relaxed text-gray-600">
                             Somos estudiantes de Ingeniería en Sistemas Computacionales, apasionados
                             por la tecnología y preparándonos para ser desarrolladores de software de
@@ -211,71 +301,102 @@ export default function Landing() {
                         </p>
 
                         <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                            <article className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-                                <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-orange-50"></div>
-                                <h3 className="font-semibold text-gray-900">Integrante 1</h3>
-                                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-orange-600">
-                                    Desarrollador Frontend
-                                </p>
-                                <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                    Enfocado en el diseño de interfaces limpias, accesibilidad web y la
-                                    experiencia interactiva para clientes y comensales.
-                                </p>
-                                <a href="mailto:contacto1@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
-                                    contacto1@correo.com
-                                </a>
-                            </article>
+                            <div className="[perspective:1000px]">
+                                <div className="relative h-80 w-full [transform-style:preserve-3d] transition-transform duration-700 ease-out hover:[transform:rotateY(180deg)] motion-reduce:transition-none motion-reduce:hover:[transform:none]">
+                                    <article className="absolute inset-0 flex flex-col rounded-xl border border-gray-200 bg-white p-6 text-center [backface-visibility:hidden]">
+                                        <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-orange-50"></div>
+                                        <h3 className="font-semibold text-gray-900">Angélica Menchaca Rueda</h3>
+                                        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-orange-600">
+                                            Desarrollador Frontend
+                                        </p>
+                                        <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                                            Enfocado en el diseño de interfaces limpias, accesibilidad
+                                            web y la experiencia interactiva para clientes y comensales.
+                                        </p>
+                                        <a href="mailto:angie@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
+                                            angie@correo.com
+                                        </a>
+                                    </article>
+                                    <div className="absolute inset-0 overflow-hidden rounded-xl border border-gray-200 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                                        <img src={imgAngie} alt="Foto de Integrante 1" className="h-full w-full object-cover" />
+                                    </div>
+                                </div>
+                            </div>
 
-                            <article className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-                                <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-orange-50"></div>
-                                <h3 className="font-semibold text-gray-900">Integrante 2</h3>
-                                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-orange-600">
-                                    Desarrollador Backend
-                                </p>
-                                <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                    Especializado en la lógica de negocio, APIs en tiempo real y la
-                                    sincronización confiable del flujo de comandas KDS.
-                                </p>
-                                <a href="mailto:contacto2@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
-                                    contacto2@correo.com
-                                </a>
-                            </article>
+                            <div className="[perspective:1000px]">
+                                <div className="relative h-80 w-full [transform-style:preserve-3d] transition-transform duration-700 ease-out hover:[transform:rotateY(180deg)] motion-reduce:transition-none motion-reduce:hover:[transform:none]">
+                                    <article className="absolute inset-0 flex flex-col rounded-xl border border-gray-200 bg-white p-6 text-center [backface-visibility:hidden]">
+                                        <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-orange-50"></div>
+                                        <h3 className="font-semibold text-gray-900">Andryk Manuel León Tapia</h3>
+                                        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-orange-600">
+                                            Desarrollador Backend
+                                        </p>
+                                        <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                                            Especializado en la lógica de negocio, APIs en tiempo real
+                                            y la sincronización confiable del flujo de comandas KDS.
+                                        </p>
+                                        <a href="mailto:andryk@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
+                                            andryk@correo.com
+                                        </a>
+                                    </article>
+                                    <div className="absolute inset-0 overflow-hidden rounded-xl border border-gray-200 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                                        <img src={imgAndryk} alt="Foto de Integrante 2" className="h-full w-full object-cover" />
+                                    </div>
+                                </div>
+                            </div>
 
-                            <article className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-                                <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-orange-50"></div>
-                                <h3 className="font-semibold text-gray-900">Integrante 3</h3>
-                                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-orange-600">
-                                    Base de Datos & Cloud
-                                </p>
-                                <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                    A cargo del modelado de datos, optimización de consultas
-                                    concurrentes y la estabilidad de la infraestructura en la nube.
-                                </p>
-                                <a href="mailto:contacto3@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
-                                    contacto3@correo.com
-                                </a>
-                            </article>
+                            <div className="[perspective:1000px]">
+                                <div className="relative h-80 w-full [transform-style:preserve-3d] transition-transform duration-700 ease-out hover:[transform:rotateY(180deg)] motion-reduce:transition-none motion-reduce:hover:[transform:none]">
+                                    <article className="absolute inset-0 flex flex-col rounded-xl border border-gray-200 bg-white p-6 text-center [backface-visibility:hidden]">
+                                        <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-orange-50"></div>
+                                        <h3 className="font-semibold text-gray-900">Daniel Alexander Estrada Cosio</h3>
+                                        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-orange-600">
+                                            Base de Datos & Cloud
+                                        </p>
+                                        <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                                            A cargo del modelado de datos, optimización de consultas
+                                            concurrentes y la estabilidad de la infraestructura en la nube.
+                                        </p>
+                                        <a href="mailto:Daniel@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
+                                            Daniel@correo.com
+                                        </a>
+                                    </article>
+                                    <div className="absolute inset-0 overflow-hidden rounded-xl border border-gray-200 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                                        <img src={imgDaniel} alt="Foto de Integrante 3" className="h-full w-full object-cover" />
+                                    </div>
+                                </div>
+                            </div>
 
-                            <article className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-                                <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-orange-50"></div>
-                                <h3 className="font-semibold text-gray-900">Integrante 4</h3>
-                                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-orange-600">
-                                    QA & Arquitectura
-                                </p>
-                                <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                    Garantizando la fiabilidad del software mediante pruebas
-                                    continuas, control de calidad y validación de requerimientos.
-                                </p>
-                                <a href="mailto:contacto4@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
-                                    contacto4@correo.com
-                                </a>
-                            </article>
+                            <div className="[perspective:1000px]">
+                                <div className="relative h-80 w-full [transform-style:preserve-3d] transition-transform duration-700 ease-out hover:[transform:rotateY(180deg)] motion-reduce:transition-none motion-reduce:hover:[transform:none]">
+                                    <article className="absolute inset-0 flex flex-col rounded-xl border border-gray-200 bg-white p-6 text-center [backface-visibility:hidden]">
+                                        <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-orange-50"></div>
+                                        <h3 className="font-semibold text-gray-900">Carlos Omar Celis Calzada</h3>
+                                        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-orange-600">
+                                            QA & Arquitectura
+                                        </p>
+                                        <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                                            Garantizando la fiabilidad del software mediante pruebas
+                                            continuas, control de calidad y validación de requerimientos.
+                                        </p>
+                                        <a href="mailto:omar@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
+                                            omar@correo.com
+                                        </a>
+                                    </article>
+                                    <div className="absolute inset-0 overflow-hidden rounded-xl border border-gray-200 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                                        <img src={imgOmar} alt="Foto de Integrante 4" className="h-full w-full object-cover" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
 
-                {/* CTA FINAL */}
-                <section className="bg-gray-50">
+                {/* CTA FINAL — se anima al hacer scroll hasta aquí */}
+                <section
+                    ref={cta.ref}
+                    className={`anim-entrada bg-gray-50 ${cta.visible ? 'anim-entrada-activa' : ''}`}
+                >
                     <div className="mx-auto max-w-3xl px-6 py-20 text-center">
                         <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-gray-500">Comienza hoy</p>
                         <h2 className="text-3xl font-bold text-gray-900">
@@ -301,7 +422,7 @@ export default function Landing() {
                 <div className="mx-auto max-w-6xl px-6 py-16">
                     <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
                         <div>
-                            <img src={logo} alt="TrackEat" className="h-6 w-auto" />
+                            <img src="/logo-white.svg" alt="TrackEat" className="h-6 w-auto" />
                             <p className="mt-4 max-w-sm text-sm leading-relaxed text-gray-400">
                                 Plataforma integral de gestión y seguimiento de pedidos en tiempo
                                 real. Proyecto de software desarrollado por estudiantes de
