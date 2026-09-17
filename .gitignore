@@ -1,0 +1,43 @@
+# ------------------------------------------------------------
+# General (aplica a todo el repositorio)
+# Las reglas específicas están en backend/.gitignore y frontend/.gitignore
+# ------------------------------------------------------------
+
+# Variables de entorno y secretos (NUNCA subir)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa*
+auth.json
+
+# Claude Code / API de Anthropic (credenciales y configuración local)
+.claude/settings.local.json
+.claude/.credentials.json
+**/.credentials.json
+CLAUDE.local.md
+.mcp.json
+anthropic*.key
+*api-key*
+*apikey*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores e IDEs
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+*.swp
+*.swo
+
+# Logs
+*.log

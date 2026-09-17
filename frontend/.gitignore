@@ -1,0 +1,22 @@
+# ------------------------------------------------------------
+# Frontend (React + Vite)
+# ------------------------------------------------------------
+
+# Dependencias (se reinstalan con `pnpm install`)
+/node_modules
+
+# Variables de entorno locales de Vite
+.env
+.env.local
+.env.*.local
+
+# Salidas de compilación y caché
+/dist
+/.vite
+*.tsbuildinfo
+.eslintcache
+
+# Logs de gestores de paquetes
+pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*

@@ -1,0 +1,34 @@
+# ------------------------------------------------------------
+# Backend (Laravel)
+# ------------------------------------------------------------
+
+# Variables de entorno (contienen APP_KEY y credenciales de BD/correo)
+.env
+.env.backup
+.env.production
+.env.testing
+!.env.example
+
+# Dependencias de Composer (se reinstalan con `composer install`)
+/vendor
+
+# Archivos compilados del frontend (se generan con `pnpm build`)
+/public/build
+/public/hot
+/public/storage
+/bootstrap/ssr
+
+# Claves y datos locales
+/storage/*.key
+/storage/pail
+*.sqlite
+*.sqlite-journal
+
+# Caché de pruebas y herramientas
+.phpunit.result.cache
+/.phpunit.cache
+.phpactor.json
+
+# Vagrant / Homestead
+Homestead.json
+Homestead.yaml
