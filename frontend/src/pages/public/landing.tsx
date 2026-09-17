@@ -422,7 +422,7 @@ export default function Landing() {
                 <div className="mx-auto max-w-6xl px-6 py-16">
                     <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
                         <div>
-                            <img src="/logo-white.svg" alt="TrackEat" className="h-6 w-auto" />
+                            <img src={imgLogo} alt="TrackEat" className="h-6 w-auto" />
                             <p className="mt-4 max-w-sm text-sm leading-relaxed text-gray-400">
                                 Plataforma integral de gestión y seguimiento de pedidos en tiempo
                                 real. Proyecto de software desarrollado por estudiantes de
