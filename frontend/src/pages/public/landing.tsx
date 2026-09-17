@@ -313,8 +313,8 @@ export default function Landing() {
                                             Enfocado en el diseño de interfaces limpias, accesibilidad
                                             web y la experiencia interactiva para clientes y comensales.
                                         </p>
-                                        <a href="mailto:angie@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
-                                            angie@correo.com
+                                        <a href="mailto:L22310573@lapaz.tecnm.mx" className="mt-4 block text-sm text-orange-600 hover:underline">
+                                            L22310573@lapaz.tecnm.mx
                                         </a>
                                     </article>
                                     <div className="absolute inset-0 overflow-hidden rounded-xl border border-gray-200 [backface-visibility:hidden] [transform:rotateY(180deg)]">
@@ -335,8 +335,8 @@ export default function Landing() {
                                             Especializado en la lógica de negocio, APIs en tiempo real
                                             y la sincronización confiable del flujo de comandas KDS.
                                         </p>
-                                        <a href="mailto:andryk@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
-                                            andryk@correo.com
+                                        <a href="mailto:L22310560@lapaz.tecnm.mx" className="mt-4 block text-sm text-orange-600 hover:underline">
+                                            L22310560@lapaz.tecnm.mx
                                         </a>
                                     </article>
                                     <div className="absolute inset-0 overflow-hidden rounded-xl border border-gray-200 [backface-visibility:hidden] [transform:rotateY(180deg)]">
@@ -357,8 +357,8 @@ export default function Landing() {
                                             A cargo del modelado de datos, optimización de consultas
                                             concurrentes y la estabilidad de la infraestructura en la nube.
                                         </p>
-                                        <a href="mailto:Daniel@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
-                                            Daniel@correo.com
+                                        <a href="mailto:L22310572@lapaz.tecnm.mx" className="mt-4 block text-sm text-orange-600 hover:underline">
+                                            L22310572@lapaz.tecnm.mx
                                         </a>
                                     </article>
                                     <div className="absolute inset-0 overflow-hidden rounded-xl border border-gray-200 [backface-visibility:hidden] [transform:rotateY(180deg)]">
@@ -379,8 +379,8 @@ export default function Landing() {
                                             Garantizando la fiabilidad del software mediante pruebas
                                             continuas, control de calidad y validación de requerimientos.
                                         </p>
-                                        <a href="mailto:omar@correo.com" className="mt-4 block text-sm text-orange-600 hover:underline">
-                                            omar@correo.com
+                                        <a href="mailto:L22310531@lapaz.tecnm.mx" className="mt-4 block text-sm text-orange-600 hover:underline">
+                                            L22310531@lapaz.tecnm.mx
                                         </a>
                                     </article>
                                     <div className="absolute inset-0 overflow-hidden rounded-xl border border-gray-200 [backface-visibility:hidden] [transform:rotateY(180deg)]">
@@ -435,10 +435,10 @@ export default function Landing() {
                                 Contacto directo con los desarrolladores
                             </p>
                             <address className="mt-4 grid grid-cols-1 gap-3 text-sm not-italic sm:grid-cols-2">
-                                <p>Integrante 1 — <a href="mailto:contacto1@correo.com" className="text-orange-500 hover:underline">contacto1@correo.com</a></p>
-                                <p>Integrante 2 — <a href="mailto:contacto2@correo.com" className="text-orange-500 hover:underline">contacto2@correo.com</a></p>
-                                <p>Integrante 3 — <a href="mailto:contacto3@correo.com" className="text-orange-500 hover:underline">contacto3@correo.com</a></p>
-                                <p>Integrante 4 — <a href="mailto:contacto4@correo.com" className="text-orange-500 hover:underline">contacto4@correo.com</a></p>
+                                <p>Angélica Menchaca Rueda — <a href="mailto:L22310573@lapaz.tecnm.mx" className="text-orange-500 hover:underline">L22310573@lapaz.tecnm.mx</a></p>
+                                <p>Andryk Manuel León Tapia — <a href="mailto:L22310560@lapaz.tecnm.mx" className="text-orange-500 hover:underline">L22310560@lapaz.tecnm.mx</a></p>
+                                <p>Daniel Alexander Estrada Cosio — <a href="mailto:L22310572@lapaz.tecnm.mx" className="text-orange-500 hover:underline">L22310572@lapaz.tecnm.mx</a></p>
+                                <p>Carlos Omar Celis Calzada — <a href="mailto:L22310531@lapaz.tecnm.mx" className="text-orange-500 hover:underline">L22310531@lapaz.tecnm.mx</a></p>
                             </address>
                         </div>
                     </div>
@@ -446,7 +446,7 @@ export default function Landing() {
                     <hr className="my-10 border-gray-700" />
 
                     <div className="flex flex-col items-center justify-between gap-2 text-xs text-gray-500 sm:flex-row">
-                        <p>© 2025 TrackEat. Desarrollado con dedicación para la optimización gastronómica.</p>
+                        <p>© 2026 TrackEat. Desarrollado con dedicación para la optimización gastronómica.</p>
                         <p className="uppercase tracking-wide">Ingeniería en Sistemas Computacionales</p>
                     </div>
                 </div>
