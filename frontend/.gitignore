@@ -1,5 +1,5 @@
 # ------------------------------------------------------------
-# Frontend (React + Vite)
+# Frontend (Svelte + Vite)
 # ------------------------------------------------------------
 
 # Dependencias (se reinstalan con `pnpm install`)
@@ -13,7 +13,6 @@
 # Salidas de compilación y caché
 /dist
 /.vite
-*.tsbuildinfo
 .eslintcache
 
 # Logs de gestores de paquetes

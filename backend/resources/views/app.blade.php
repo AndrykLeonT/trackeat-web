@@ -10,8 +10,7 @@
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
         @routes
-        @viteReactRefresh
-        @vite(['src/app.tsx', "src/pages/{$page['component']}.tsx"])
+        @vite(['src/app.js', "src/pages/{$page['component']}.svelte"])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

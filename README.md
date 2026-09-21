@@ -98,7 +98,7 @@ con el logotipo, una descripción del proyecto y los correos de contacto de los 
 | --- | --- |
 | Backend | PHP 8.2+, Laravel 12 |
 | Puente servidor–cliente | Inertia.js 2 |
-| Frontend | React 19, TypeScript |
+| Frontend | Svelte 5, JavaScript |
 | Estilos | Tailwind CSS 4 |
 | Empaquetador | Vite 6 |
 | Rutas en el cliente | Ziggy |
@@ -115,9 +115,9 @@ track-eat/
 │   ├── app/Http/             Controladores y middleware de Inertia
 │   ├── resources/views/      Plantilla raíz app.blade.php
 │   └── public/               Punto de entrada y assets compilados
-└── frontend/                 Aplicación React
-    ├── src/app.tsx           Arranque de Inertia en el navegador
-    ├── src/pages/public/     landing.tsx (la primera página)
+└── frontend/                 Aplicación Svelte
+    ├── src/app.js            Arranque de Inertia en el navegador
+    ├── src/pages/public/     landing.svelte (la primera página)
     ├── src/pages/auth/       Pantallas de autenticación
     ├── src/components/       Componentes de interfaz reutilizables
     ├── src/assets/images/    Logotipo, ilustraciones y fotos del equipo
