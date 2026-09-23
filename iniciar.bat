@@ -39,7 +39,7 @@ if "%PHP_CMD%"=="" (
 echo [OK] Usando PHP: %PHP_CMD%
 
 REM 2. Levantar Servidores
-start "TrackEat - Backend (Laravel)" cmd /k "cd backend && "%PHP_CMD%" artisan serve"
+start "TrackEat - Backend (Laravel)" cmd /k "cd backend && %PHP_CMD% artisan serve"
 start "TrackEat - Frontend (Vite)" cmd /k "cd frontend && npm run dev"
 
 REM 3. Abrir Navegador
