@@ -17,7 +17,7 @@ export default defineConfig({
             ssrOutputDirectory: '../backend/bootstrap/ssr',
             refresh: ['../backend/resources/views/**', '../backend/routes/**'],
         }),
-        svelte(),
+        svelte({configFile:'./svelte.config.js' }),
         tailwindcss(),
     ],
     resolve: {
