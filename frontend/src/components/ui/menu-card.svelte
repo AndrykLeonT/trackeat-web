@@ -126,7 +126,7 @@
                 <!-- Tiempo KDS & Disponibilidad -->
                 <div class="mt-4 flex items-center justify-between rounded-xl bg-gray-50 border border-gray-100 p-2.5 text-xs">
                     <span class="text-gray-600 font-medium">
-                        ⏱️ Tiempo estimado: <strong class="text-gray-900">{dish.prepTime}</strong>
+                        Tiempo estimado: <strong class="text-gray-900">{dish.prepTime}</strong>
                     </span>
                     <span class="font-semibold text-emerald-600">
                         En menú digital
