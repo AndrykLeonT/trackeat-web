@@ -6,6 +6,10 @@
     import imgAndryk from '../../assets/images/andryk.jpg';
     import imgOmar from '../../assets/images/omar.jpg';
     import imgDaniel from '../../assets/images/daniel.jpg';
+    import Menu from '@lucide/svelte/icons/menu';
+    import X from '@lucide/svelte/icons/x';
+
+    let isLandingMenuOpen = $state(false);
 
     // Añade la clase que dispara la animación de entrada la primera vez
     // que la sección entra al viewport, y luego deja de observar.
@@ -35,18 +39,96 @@
 
 <PageTitle title="TrackEat" />
 
-<header class="border-b border-gray-200 bg-white">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <img src={imgLogo} alt="TrackEat" class="h-8 w-auto" />
+<header class="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur-md">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 py-3.5">
+        <a href="/" class="flex items-center">
+            <img src={imgLogo} alt="TrackEat" class="h-8 w-auto object-contain" />
+        </a>
 
-        <nav aria-label="Secciones de la página">
-            <ul class="flex items-center gap-8 text-sm text-gray-600">
-                <li><a href="#que-es" class="hover:text-gray-900">Qué es TrackEat</a></li>
-                <li><a href="#por-que-usar" class="hover:text-gray-900">Por qué usar TrackEat</a></li>
-                <li><a href="#nosotros" class="hover:text-gray-900">Acerca de nosotros</a></li>
+        <!-- Navegación Desktop -->
+        <nav aria-label="Secciones de la página" class="hidden md:flex items-center gap-8">
+            <ul class="flex items-center gap-6 text-sm text-gray-600">
+                <li><a href="#que-es" class="hover:text-gray-900 transition-colors">Qué es TrackEat</a></li>
+                <li><a href="#por-que-usar" class="hover:text-gray-900 transition-colors">Por qué usar TrackEat</a></li>
+                <li><a href="#nosotros" class="hover:text-gray-900 transition-colors">Acerca de nosotros</a></li>
             </ul>
+            <a
+                href="/dashboard"
+                class="rounded-lg bg-orange-600 px-4 py-2 text-xs font-semibold text-white hover:bg-orange-700 transition-colors shadow-xs"
+            >
+                Ir al Dashboard
+            </a>
         </nav>
+
+        <!-- Botones en Móvil -->
+        <div class="flex items-center gap-2 md:hidden">
+            <a
+                href="/dashboard"
+                class="rounded-lg bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-100 transition-colors"
+            >
+                Dashboard
+            </a>
+            <button
+                type="button"
+                onclick={() => (isLandingMenuOpen = !isLandingMenuOpen)}
+                aria-label="Abrir menú"
+                aria-expanded={isLandingMenuOpen}
+                class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+            >
+                {#if isLandingMenuOpen}
+                    <X class="size-5" />
+                {:else}
+                    <Menu class="size-5" />
+                {/if}
+            </button>
+        </div>
     </div>
+
+    <!-- Menú Desplegable Móvil -->
+    {#if isLandingMenuOpen}
+        <div class="border-t border-gray-200 bg-white px-4 py-4 md:hidden shadow-lg animate-in slide-in-from-top-2 duration-150">
+            <nav aria-label="Navegación móvil">
+                <ul class="flex flex-col space-y-2 text-sm font-medium text-gray-700">
+                    <li>
+                        <a
+                            href="#que-es"
+                            onclick={() => (isLandingMenuOpen = false)}
+                            class="block rounded-lg px-3 py-2.5 hover:bg-gray-50 hover:text-orange-600 transition-colors"
+                        >
+                            Qué es TrackEat
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="#por-que-usar"
+                            onclick={() => (isLandingMenuOpen = false)}
+                            class="block rounded-lg px-3 py-2.5 hover:bg-gray-50 hover:text-orange-600 transition-colors"
+                        >
+                            Por qué usar TrackEat
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            href="#nosotros"
+                            onclick={() => (isLandingMenuOpen = false)}
+                            class="block rounded-lg px-3 py-2.5 hover:bg-gray-50 hover:text-orange-600 transition-colors"
+                        >
+                            Acerca de nosotros
+                        </a>
+                    </li>
+                    <li class="pt-2 border-t border-gray-100">
+                        <a
+                            href="/dashboard"
+                            onclick={() => (isLandingMenuOpen = false)}
+                            class="flex w-full items-center justify-center rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 shadow-xs transition-colors"
+                        >
+                            Ingresar al Sistema
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    {/if}
 </header>
 
 <main>
@@ -349,36 +431,36 @@
 </main>
 
 <footer class="bg-gray-900 text-gray-300">
-    <div class="mx-auto max-w-6xl px-6 py-16">
-        <div class="grid grid-cols-1 gap-10 lg:grid-cols-2">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 py-10 sm:py-12">
+        <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
             <div>
                 <img src={imgLogo} alt="TrackEat" class="h-6 w-auto" />
-                <p class="mt-4 max-w-sm text-sm leading-relaxed text-gray-400">
+                <p class="mt-3 max-w-sm text-xs sm:text-sm leading-relaxed text-gray-400">
                     Plataforma integral de gestión y seguimiento de pedidos en tiempo real. Proyecto de software desarrollado por estudiantes de
                     Ingeniería en Sistemas Computacionales.
                 </p>
             </div>
 
             <div>
-                <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Contacto directo con los desarrolladores</p>
-                <address class="mt-4 grid grid-cols-1 gap-3 text-sm not-italic sm:grid-cols-2">
+                <p class="text-xs font-semibold tracking-wide text-gray-400 uppercase">Contacto directo con los desarrolladores</p>
+                <address class="mt-3 grid grid-cols-1 gap-2 text-xs sm:text-sm not-italic sm:grid-cols-2">
                     <p>
-                        Angélica Menchaca Rueda — <a href="mailto:L22310573@lapaz.tecnm.mx" class="text-orange-500 hover:underline"
+                        Angélica Menchaca — <a href="mailto:L22310573@lapaz.tecnm.mx" class="text-orange-400 hover:underline"
                             >L22310573@lapaz.tecnm.mx</a
                         >
                     </p>
                     <p>
-                        Andryk Manuel León Tapia — <a href="mailto:L22310560@lapaz.tecnm.mx" class="text-orange-500 hover:underline"
+                        Andryk León — <a href="mailto:L22310560@lapaz.tecnm.mx" class="text-orange-400 hover:underline"
                             >L22310560@lapaz.tecnm.mx</a
                         >
                     </p>
                     <p>
-                        Daniel Alexander Estrada Cosio — <a href="mailto:L22310572@lapaz.tecnm.mx" class="text-orange-500 hover:underline"
+                        Daniel Estrada — <a href="mailto:L22310572@lapaz.tecnm.mx" class="text-orange-400 hover:underline"
                             >L22310572@lapaz.tecnm.mx</a
                         >
                     </p>
                     <p>
-                        Carlos Omar Celis Calzada — <a href="mailto:L22310531@lapaz.tecnm.mx" class="text-orange-500 hover:underline"
+                        Carlos Celis — <a href="mailto:L22310531@lapaz.tecnm.mx" class="text-orange-400 hover:underline"
                             >L22310531@lapaz.tecnm.mx</a
                         >
                     </p>
@@ -386,11 +468,11 @@
             </div>
         </div>
 
-        <hr class="my-10 border-gray-700" />
+        <hr class="my-6 sm:my-8 border-gray-800" />
 
-        <div class="flex flex-col items-center justify-between gap-2 text-xs text-gray-500 sm:flex-row">
+        <div class="flex flex-col items-center justify-between gap-2 text-xs text-gray-400 sm:flex-row text-center sm:text-left">
             <p>© 2026 TrackEat. Desarrollado con dedicación para la optimización gastronómica.</p>
-            <p class="uppercase tracking-wide">Ingeniería en Sistemas Computacionales</p>
+            <p class="uppercase tracking-wide text-[11px] text-gray-400">Ingeniería en Sistemas Computacionales</p>
         </div>
     </div>
 </footer>
