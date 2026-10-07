@@ -6,7 +6,7 @@
     import Plus from '@lucide/svelte/icons/plus';
 
     // =========================================================================
-    // ARREGLO DE DATOS DE PLATILLOS (Declarado localmente)
+    // ARREGLO DE DATOS DE PLATILLOS
     // =========================================================================
     const dishes = [
         {

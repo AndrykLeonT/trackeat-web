@@ -15,10 +15,7 @@ Route::get('/dashboard', function () {
 })->name('dashboard');
 
 Route::get('/comandas', function () {
-    return Inertia::render('public/dashboard', [
-        'title' => 'Comandas',
-        'description' => 'Gestión y estado de órdenes de cocina en tiempo real.',
-    ]);
+    return Inertia::render('public/comandas');
 })->name('comandas');
 
 Route::get('/menu', function () {

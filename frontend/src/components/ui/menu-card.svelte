@@ -123,7 +123,6 @@
                     </div>
                 </div>
 
-                <!-- Tiempo KDS & Disponibilidad -->
                 <div class="mt-4 flex items-center justify-between rounded-xl bg-muted/50 border border-border p-2.5 text-xs">
                     <span class="text-muted-foreground font-medium">
                         ⏱️ Tiempo estimado: <strong class="text-card-foreground">{dish.prepTime}</strong>
