@@ -181,8 +181,68 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
+        /* Desactivar transición y rotación del flip 3D */
         .card-flipper {
             transition: none;
+        }
+
+        .card-flipper:hover,
+        .card-flipper.is-flipped {
+            transform: none;
+            -webkit-transform: none;
+        }
+
+        /* Desactivar zoom de imagen al hacer hover */
+        .card-front img {
+            transition: none !important;
+        }
+        .card-front img:hover {
+            transform: none !important;
+        }
+
+        /* Desactivar animación de pulso en el indicador */
+        .card-front :global(.animate-pulse) {
+            animation: none !important;
+        }
+
+        /* Reemplazar flip 3D por crossfade de opacidad */
+        .card-container {
+            perspective: none;
+            -webkit-perspective: none;
+        }
+
+        .card-flipper,
+        .card-face {
+            transform-style: flat;
+            -webkit-transform-style: flat;
+        }
+
+        .card-front {
+            transform: none;
+            -webkit-transform: none;
+            opacity: 1;
+            transition: opacity 0.01s;
+        }
+
+        .card-back {
+            transform: none;
+            -webkit-transform: none;
+            opacity: 0;
+            transition: opacity 0.01s;
+        }
+
+        .card-flipper:hover .card-front,
+        .card-flipper.is-flipped .card-front {
+            transform: none;
+            -webkit-transform: none;
+            opacity: 0;
+        }
+
+        .card-flipper:hover .card-back,
+        .card-flipper.is-flipped .card-back {
+            transform: none;
+            -webkit-transform: none;
+            opacity: 1;
         }
     }
 </style>
