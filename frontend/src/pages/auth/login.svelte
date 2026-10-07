@@ -86,6 +86,6 @@
     </form>
 
     {#if status}
-        <div class="mb-4 text-center text-sm font-medium text-green-600">{status}</div>
+        <div class="mb-4 text-center text-sm font-medium text-chart-2">{status}</div>
     {/if}
 </AuthLayout>

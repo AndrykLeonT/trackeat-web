@@ -18,8 +18,8 @@
             items: [
                 { name: 'Tacos al Pastor Especiales', quantity: 2, notes: 'Sin cebolla morada uno de ellos' },
                 { name: 'Papas Rústicas Trufadas', quantity: 1 },
-                { name: 'Agua Fresca de Horchata Artesanal', quantity: 2 }
-            ]
+                { name: 'Agua Fresca de Horchata Artesanal', quantity: 2 },
+            ],
         },
         {
             id: 2,
@@ -31,8 +31,8 @@
             timeElapsed: 'Hace 8 min',
             items: [
                 { name: 'Hamburguesa Artesanal TrackEat', quantity: 2, notes: 'Término medio' },
-                { name: 'Papas Rústicas Trufadas', quantity: 2 }
-            ]
+                { name: 'Papas Rústicas Trufadas', quantity: 2 },
+            ],
         },
         {
             id: 3,
@@ -44,8 +44,8 @@
             timeElapsed: 'Hace 2 min',
             items: [
                 { name: 'Burrito Norteño de Asada', quantity: 1, notes: 'Guacamole extra' },
-                { name: 'Limonada Mineral con Hierbabuena', quantity: 1 }
-            ]
+                { name: 'Limonada Mineral con Hierbabuena', quantity: 1 },
+            ],
         },
         {
             id: 4,
@@ -57,9 +57,9 @@
             timeElapsed: 'Hace 15 min',
             items: [
                 { name: 'Smash Burger Doble Queso', quantity: 1 },
-                { name: 'Limonada Mineral con Hierbabuena', quantity: 1 }
-            ]
-        }
+                { name: 'Limonada Mineral con Hierbabuena', quantity: 1 },
+            ],
+        },
     ];
 </script>
 
@@ -68,24 +68,22 @@
 <AppLayout>
     <div class="space-y-6">
         <!-- ==================== HEADER ==================== -->
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200/80 pb-5">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
             <div>
                 <div class="flex items-center gap-2">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         <CookingPot class="size-4" />
                     </span>
-                    <h1 class="text-2xl font-bold tracking-tight text-gray-900">Comandas en Cocina</h1>
+                    <h1 class="text-2xl font-bold tracking-tight text-foreground">Comandas en Cocina</h1>
                 </div>
-                <p class="mt-1 text-sm text-gray-500">
-                    Control de órdenes activas, tiempos y estado de preparación.
-                </p>
+                <p class="mt-1 text-sm text-muted-foreground">Control de órdenes activas, tiempos y estado de preparación.</p>
             </div>
 
             <!-- Botón Nueva Comanda -->
             <div>
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-orange-700 transition-colors"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"
                 >
                     <Plus class="size-4" />
                     <span>Nueva Comanda</span>
