@@ -5,7 +5,7 @@
 </script>
 
 {#if message}
-    <p class={cn('text-sm text-red-600 dark:text-red-400', className)} {...rest}>
+    <p class={cn('text-sm text-destructive', className)} {...rest}>
         {message}
     </p>
 {/if}

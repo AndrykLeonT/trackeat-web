@@ -19,14 +19,7 @@
             summary: 'Tres tacos con carne de cerdo marinada al pastor, piña asada, cebolla morada y cilantro fresco.',
             description:
                 'Nuestra receta insignia marinada con achiote y especias tradicionales por 24 horas, servida en tortillas de maíz recién hechas con piña asada al carbón, cebolla morada y cilantro criollo.',
-            ingredients: [
-                'Cerdo marinado',
-                'Achiote tradicional',
-                'Piña asada',
-                'Cilantro fresco',
-                'Cebolla morada',
-                'Tortilla de maíz',
-            ],
+            ingredients: ['Cerdo marinado', 'Achiote tradicional', 'Piña asada', 'Cilantro fresco', 'Cebolla morada', 'Tortilla de maíz'],
             isPopular: true,
             tag: 'Favorito',
         },
@@ -40,14 +33,7 @@
             summary: '180g de carne de res selecta, queso cheddar fundido, tocino crujiente y aderezo especial en pan brioche.',
             description:
                 'Carne de res 100% Angus cocinada al término ideal sobre plancha caliente, cubierta con queso cheddar añejo fundido, tiras de tocino ahumado, lechuga romana, tomate y nuestra salsa secreta de la casa.',
-            ingredients: [
-                'Carne Angus 180g',
-                'Queso Cheddar',
-                'Tocino ahumado',
-                'Pan Brioche',
-                'Salsa de la casa',
-                'Cebolla caramelizada',
-            ],
+            ingredients: ['Carne Angus 180g', 'Queso Cheddar', 'Tocino ahumado', 'Pan Brioche', 'Salsa de la casa', 'Cebolla caramelizada'],
             isPopular: true,
             tag: 'Recomendado',
         },
@@ -82,13 +68,7 @@
             summary: 'Dos costras crujientes de carne smash con doble queso americano, pepinillos y mostaza dulce.',
             description:
                 'Técnica smash clásica que crea una costra caramelizada inigualable. Lleva dos medallones de res, doble capa de queso americano derretido, pepinillos agridulces y cebolla picada finamente.',
-            ingredients: [
-                'Doble carne smash',
-                'Doble queso americano',
-                'Pepinillos encurtidos',
-                'Cebolla blanca',
-                'Pan de papa artesanal',
-            ],
+            ingredients: ['Doble carne smash', 'Doble queso americano', 'Pepinillos encurtidos', 'Cebolla blanca', 'Pan de papa artesanal'],
             isPopular: false,
             tag: 'Nuevo',
         },
@@ -102,13 +82,7 @@
             summary: 'Papas con corte artesanal sazonadas con sal marina, romero fresco y aceite de trufa blanca.',
             description:
                 'Papas naturales fritas en dos tiempos para lograr un exterior extra crujiente y corazón suave, infusionadas con aceite de trufa blanca, queso parmesano recién rallado y romero del huerto.',
-            ingredients: [
-                'Papas naturales',
-                'Aceite de trufa blanca',
-                'Queso Parmesano',
-                'Romero fresco',
-                'Sal marina gruesa',
-            ],
+            ingredients: ['Papas naturales', 'Aceite de trufa blanca', 'Queso Parmesano', 'Romero fresco', 'Sal marina gruesa'],
             isPopular: false,
             tag: 'Crujiente',
         },
@@ -122,13 +96,7 @@
             summary: 'Bebida tradicional mexicana de arroz y canela con toque de vainilla y leche condensada.',
             description:
                 'Receta de la casa elaborada con arroz seleccionado a fuego lento, canela entera molida en metate, vainilla natural y leche condensada, servida con hielo frappé.',
-            ingredients: [
-                'Arroz seleccionado',
-                'Canela en rama',
-                'Leche condensada',
-                'Extracto de vainilla',
-                'Hielo frappé',
-            ],
+            ingredients: ['Arroz seleccionado', 'Canela en rama', 'Leche condensada', 'Extracto de vainilla', 'Hielo frappé'],
             isPopular: true,
             tag: 'Tradicional',
         },
@@ -142,13 +110,7 @@
             summary: 'Jugo de limón recién exprimido con agua mineral de manantial y hojas frescas de hierbabuena.',
             description:
                 'Bebida intensamente refrescante con limones de la región exprimidos al momento, agua mineral con burbuja fina, azúcar de caña orgánica y hierbabuena fresca macerada suavemente.',
-            ingredients: [
-                'Limón criollo fresco',
-                'Agua mineral con gas',
-                'Hierbabuena fresca',
-                'Jarabe artesanal',
-                'Rodaja de lima',
-            ],
+            ingredients: ['Limón criollo fresco', 'Agua mineral con gas', 'Hierbabuena fresca', 'Jarabe artesanal', 'Rodaja de lima'],
             isPopular: false,
             tag: 'Refrescante',
         },
@@ -162,13 +124,7 @@
             summary: 'Cuatro churros recién hechos espolvoreados con azúcar y canela, acompañados de cajeta quemada.',
             description:
                 'Churros hechos al momento con masa ligera dorada a la perfección, pasados por azúcar glass con canela molida, servidos con dos copitas de cajeta quemada de Celaya y chocolate caliente.',
-            ingredients: [
-                'Masa artesanal',
-                'Canela fina',
-                'Azúcar morena',
-                'Cajeta de Celaya',
-                'Salsa de chocolate',
-            ],
+            ingredients: ['Masa artesanal', 'Canela fina', 'Azúcar morena', 'Cajeta de Celaya', 'Salsa de chocolate'],
             isPopular: true,
             tag: 'Dulce',
         },
@@ -180,24 +136,22 @@
 <AppLayout>
     <div class="space-y-6">
         <!-- ==================== ENCABEZADO DE PÁGINA ==================== -->
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200/80 pb-5">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
             <div>
                 <div class="flex items-center gap-2">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         <Utensils class="size-4" />
                     </span>
-                    <h1 class="text-2xl font-bold tracking-tight text-gray-900">Menú Digital</h1>
+                    <h1 class="text-2xl font-bold tracking-tight text-foreground">Menú Digital</h1>
                 </div>
-                <p class="mt-1 text-sm text-gray-500">
-                    Catálogo de platillos, recetas e ingredientes del restaurante.
-                </p>
+                <p class="mt-1 text-sm text-muted-foreground">Catálogo de platillos, recetas e ingredientes del restaurante.</p>
             </div>
 
             <!-- Botón Nuevo Platillo -->
             <div>
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-orange-700 transition-colors"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"
                 >
                     <Plus class="size-4" />
                     <span>Nuevo Platillo</span>
