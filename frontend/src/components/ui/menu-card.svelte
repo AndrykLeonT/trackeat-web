@@ -27,12 +27,19 @@
         >
             <!-- Imagen del Platillo con badges -->
             <div class="relative h-48 w-full shrink-0 overflow-hidden bg-muted">
-                <img
-                    src={dish.image}
-                    alt={dish.name}
-                    loading="lazy"
-                    class="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
-                />
+                <picture>
+                    <source
+                        srcset="{dish.image} 400w, {dish.image} 800w, {dish.image} 1200w"
+                        sizes="(max-width: 600px) 100vw, 600px"
+                        type="image/webp"
+                    />
+                    <img
+                        src="{dish.image}"
+                        alt="{dish.name}"
+                        loading="lazy"
+                        class="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                    />
+                </picture>
                 <div class="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-background/20"></div>
 
                 <!-- Badges superiores -->
