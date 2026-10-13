@@ -102,7 +102,7 @@ con el logotipo, una descripción del proyecto y los correos de contacto de los 
 | Estilos | Tailwind CSS 4 |
 | Empaquetador | Vite 6 |
 | Rutas en el cliente | Ziggy |
-| Base de datos | SQLite |
+| Base de datos | PostgreSQL 15+ |
 | Gestores de paquetes | Composer y pnpm |
 
 ## 7. Estructura del repositorio
@@ -128,7 +128,9 @@ track-eat/
 
 ### Requisitos
 
-PHP 8.2 o superior, Composer, Node.js y pnpm.
+PHP 8.2 o superior con `pdo_pgsql` y `bcmath`, PostgreSQL 15+, Composer, Node.js y pnpm.
+
+Para configurar PostgreSQL local y cargar los ejemplos automaticamente, seguir [la guia de ejecucion local](docs/equipo.md). El script configura `.env` con respaldo. Cambiar la conexion desde SQLite no importa automaticamente sus datos.
 
 ### Instalación
 
@@ -139,6 +141,7 @@ composer install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate
+php artisan db:seed # Ejemplos: solo local/testing
 
 # Frontend
 cd ../frontend
@@ -162,6 +165,8 @@ O bien, ambos de una sola vez:
 ```bash
 cd backend && composer dev
 ```
+
+Para trabajar con **la misma estructura y datos de ejemplo en cada computadora**, ejecutar primero `iniciar-base-datos.bat` y despues `iniciar.bat`. PostgreSQL se configura y carga localmente de forma automatica, sin pedir IP ni contrasena. Detalles en [la guia de ejecucion local](docs/equipo.md).
 
 El sitio queda disponible en **http://localhost:8000**, donde se muestra directamente la landing
 page.
