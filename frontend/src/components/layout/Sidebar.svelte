@@ -8,8 +8,9 @@
     import ChefHat from '@lucide/svelte/icons/chef-hat';
     import LogOut from '@lucide/svelte/icons/log-out';
     import ExternalLink from '@lucide/svelte/icons/external-link';
+    import Users from '@lucide/svelte/icons/users';
 
-    let { onNavigate = null } = $props();
+    let { onNavigate = null, nativeNavigation = false, currentUrl = null } = $props();
 
     // Secciones organizadas de los módulos de TrackEat
     const navigationSections = [
@@ -25,6 +26,12 @@
                     name: 'Comandas',
                     href: '/comandas',
                     icon: CookingPot,
+                },
+                {
+                    name: 'Personal',
+                    href: '/personal/',
+                    icon: Users,
+                    offlineCatalog: true,
                 },
             ],
         },
@@ -46,11 +53,11 @@
     ];
 
     function isItemActive(href) {
-        const currentUrl = $page?.url || '';
+        const url = currentUrl ?? $page?.url ?? '';
         if (href === '/dashboard') {
-            return currentUrl === '/dashboard' || currentUrl === '/';
+            return url === '/dashboard' || url === '/';
         }
-        return currentUrl.startsWith(href);
+        return url.startsWith(href);
     }
 
     function handleNavClick() {
@@ -60,48 +67,68 @@
     }
 </script>
 
-<nav class="flex h-full flex-col justify-between p-4 bg-sidebar text-sidebar-foreground selection:bg-sidebar-accent select-none">
+{#snippet navContent(item, active)}
+    {@const Icon = item.icon}
+    <div class="flex items-center gap-3 min-w-0">
+        <Icon
+            class="size-5 shrink-0 transition-transform duration-200 {active
+                ? 'text-sidebar-accent-foreground scale-105'
+                : 'text-sidebar-foreground/60 group-hover:text-sidebar-accent-foreground group-hover:scale-105'}"
+        />
+        <span class="truncate">{item.name}</span>
+    </div>
+    {#if active}<span class="h-1.5 w-1.5 rounded-full bg-sidebar-primary"></span>{/if}
+{/snippet}
+
+<nav
+    aria-label="Módulos de TrackEat"
+    class="flex h-full flex-col justify-between p-4 bg-sidebar text-sidebar-foreground selection:bg-sidebar-accent select-none"
+>
     <!-- Parte superior: Logo y Navegación -->
     <div class="flex flex-1 flex-col overflow-y-auto pr-1 -mr-1">
         <!-- Encabezado con Logo grande -->
         <div class="mb-6 px-2 pt-2 pb-4 border-b border-sidebar-border">
-            <Link href="/dashboard" onclick={handleNavClick} class="inline-block transition-transform duration-200 hover:scale-[1.02]">
-                <img src={logo} alt="TrackEat" class="h-11 w-auto object-contain" />
-            </Link>
+            {#if nativeNavigation}
+                <a href="/dashboard" onclick={handleNavClick} class="inline-block transition-transform duration-200 hover:scale-[1.02]">
+                    <img src={logo} alt="TrackEat" class="h-11 w-auto object-contain" />
+                </a>
+            {:else}
+                <Link href="/dashboard" onclick={handleNavClick} class="inline-block transition-transform duration-200 hover:scale-[1.02]">
+                    <img src={logo} alt="TrackEat" class="h-11 w-auto object-contain" />
+                </Link>
+            {/if}
         </div>
 
         <!-- Lista de Módulos agrupados por sección -->
         <div class="space-y-6">
-            {#each navigationSections as section}
+            {#each navigationSections as section (section.title)}
                 <div>
                     <p class="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-sidebar-foreground/60">
                         {section.title}
                     </p>
                     <ul class="space-y-1.5">
-                        {#each section.items as item}
+                        {#each section.items as item (item.href)}
                             {@const active = isItemActive(item.href)}
-                            {@const Icon = item.icon}
+                            {@const navClass = `group relative flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
+                                active
+                                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs ring-1 ring-sidebar-border'
+                                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            }`}
                             <li>
-                                <Link
-                                    href={item.href}
-                                    onclick={handleNavClick}
-                                    class="group relative flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 {active
-                                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs ring-1 ring-sidebar-border'
-                                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
-                                >
-                                    <div class="flex items-center gap-3 min-w-0">
-                                        <Icon
-                                            class="size-5 shrink-0 transition-transform duration-200 {active
-                                                ? 'text-sidebar-accent-foreground scale-105'
-                                                : 'text-sidebar-foreground/60 group-hover:text-sidebar-accent-foreground group-hover:scale-105'}"
-                                        />
-                                        <span class="truncate">{item.name}</span>
-                                    </div>
-
-                                    {#if active}
-                                        <span class="h-1.5 w-1.5 rounded-full bg-sidebar-primary"></span>
-                                    {/if}
-                                </Link>
+                                {#if nativeNavigation || item.offlineCatalog}
+                                    <a
+                                        href={nativeNavigation && item.offlineCatalog ? './' : item.href}
+                                        onclick={handleNavClick}
+                                        aria-current={active ? 'page' : undefined}
+                                        class={navClass}
+                                    >
+                                        {@render navContent(item, active)}
+                                    </a>
+                                {:else}
+                                    <Link href={item.href} onclick={handleNavClick} aria-current={active ? 'page' : undefined} class={navClass}>
+                                        {@render navContent(item, active)}
+                                    </Link>
+                                {/if}
                             </li>
                         {/each}
                     </ul>

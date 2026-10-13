@@ -4,7 +4,14 @@
     import ChefHat from '@lucide/svelte/icons/chef-hat';
     import { page, Link } from '@inertiajs/svelte';
 
-    let { onToggleMobileMenu = () => {}, isMobileMenuOpen = false } = $props();
+    let {
+        onToggleMobileMenu = () => {},
+        isMobileMenuOpen = false,
+        nativeNavigation = false,
+        title = 'Panel Principal',
+        connectionLabel = 'Servicio Activo',
+        connected = true,
+    } = $props();
 </script>
 
 <div class="flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6">
@@ -23,16 +30,18 @@
 
         <!-- Logo en Móvil (en Desktop se muestra prominentemente en la Sidebar) -->
         <div class="flex items-center md:hidden">
-            <Link href="/dashboard" class="flex items-center">
-                <img src={logo} alt="TrackEat" class="h-8 w-auto object-contain" />
-            </Link>
+            {#if nativeNavigation}
+                <a href="/dashboard" class="flex items-center"><img src={logo} alt="TrackEat" class="h-8 w-auto object-contain" /></a>
+            {:else}
+                <Link href="/dashboard" class="flex items-center"><img src={logo} alt="TrackEat" class="h-8 w-auto object-contain" /></Link>
+            {/if}
         </div>
 
         <!-- Indicador de ubicación / contexto en Desktop -->
         <div class="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
             <span class="font-medium text-muted-foreground/80">TrackEat</span>
             <span class="text-border">/</span>
-            <span class="font-semibold text-foreground">Panel Principal</span>
+            <span class="font-semibold text-foreground">{title}</span>
         </div>
     </div>
 
@@ -40,13 +49,15 @@
     <div class="flex items-center gap-3">
         <!-- Indicador de Cocina en Línea / Servicio Activo (en pantallas >= sm) -->
         <div
-            class="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-chart-2/10 px-2.5 py-1 text-xs font-medium text-chart-2 border border-chart-2/30 shadow-xs"
+            class="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border shadow-xs {connected
+                ? 'bg-chart-2/10 text-chart-2 border-chart-2/30'
+                : 'bg-muted text-muted-foreground border-border'}"
         >
             <span class="relative flex h-2 w-2">
-                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-chart-2/70 opacity-75"></span>
-                <span class="relative inline-flex h-2 w-2 rounded-full bg-chart-2"></span>
+                {#if connected}<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-chart-2/70 opacity-75"></span>{/if}
+                <span class="relative inline-flex h-2 w-2 rounded-full {connected ? 'bg-chart-2' : 'bg-muted-foreground'}"></span>
             </span>
-            <span>Servicio Activo</span>
+            <span>{connectionLabel}</span>
         </div>
 
         <!-- Avatar / Perfil de Usuario -->

@@ -22,6 +22,9 @@ Route::get('/menu', function () {
     return Inertia::render('public/menu');
 })->name('menu');
 
+// El catálogo tiene su propio HTML estático para poder recargarlo sin conexión.
+Route::redirect('/personal', '/personal/')->name('personal');
+
 Route::get('/recetas', function () {
     return Inertia::render('public/dashboard', [
         'title' => 'Recetas',

@@ -14,6 +14,7 @@
 
 # Archivos compilados del frontend (se generan con `pnpm build`)
 /public/build
+/public/personal
 /public/hot
 /public/storage
 /bootstrap/ssr

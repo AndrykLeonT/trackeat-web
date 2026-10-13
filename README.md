@@ -175,6 +175,23 @@ page.
 > archivos ya compilados. Para verlos actualizados hay que generar el build con
 > `cd frontend && pnpm build`.
 
+## Práctica 4: catálogo local de personal
+
+El módulo **Personal**, enlazado desde la barra lateral, permite registrar,
+consultar, editar y eliminar personal con fotografía binaria en IndexedDB v2.
+Incluye búsquedas por índices, migración desde v1, gráfico por área y un service
+worker para trabajar sin conexión después de la primera visita.
+
+Ejecutar `pnpm build` en `frontend` y abrir `http://localhost:8000/personal/`.
+También puede usarse por separado con `pnpm preview:personal`, sin PHP ni
+PostgreSQL. El código de la práctica está en `frontend/personal/`; la salida
+portable se genera en `backend/public/personal/`.
+
+Consultar el [LEEME de la práctica](frontend/personal/LEEME.md) para el esquema,
+índices, caché y declaración de IA, y el [guion de demostración](frontend/personal/DEMOSTRACION.md)
+para verificar todos los requisitos con la red desactivada.
+Los resultados de las comprobaciones están en [VERIFICACION.md](frontend/personal/VERIFICACION.md).
+
 ## 9. Equipo
 
 | Integrante | No. de control | Rol |

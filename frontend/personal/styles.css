@@ -1,0 +1,623 @@
+/* El catálogo usa los tokens de app.css, sin modificar el layout compartido. */
+.personal-catalog {
+    position: relative;
+    color: var(--foreground);
+}
+:where(.personal-catalog, .personal-dialog) button {
+    cursor: pointer;
+}
+:where(.personal-catalog, .personal-dialog) button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+:where(.personal-catalog, .personal-dialog) :is(button, a, summary, input, select):focus-visible,
+.skip-link:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+}
+.skip-link {
+    position: fixed;
+    left: 16px;
+    top: -100px;
+    z-index: 60;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    background: var(--card);
+    color: var(--foreground);
+}
+.skip-link:focus {
+    top: 16px;
+}
+.personal-catalog .page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+}
+.personal-catalog h1 {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.025em;
+}
+.personal-catalog .page-heading p {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--muted-foreground);
+}
+:where(.personal-catalog, .personal-dialog) :is(.primary, .secondary, .danger) {
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 40px;
+    transition: background-color 0.15s;
+}
+:where(.personal-catalog, .personal-dialog) .primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+}
+:where(.personal-catalog, .personal-dialog) .primary:hover {
+    background: color-mix(in srgb, var(--primary) 90%, transparent);
+}
+:where(.personal-catalog, .personal-dialog) .secondary {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+}
+:where(.personal-catalog, .personal-dialog) .secondary:hover {
+    background: var(--accent);
+}
+:where(.personal-catalog, .personal-dialog) .danger {
+    background: var(--destructive);
+    color: var(--destructive-foreground);
+}
+.personal-catalog .offline-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--muted);
+}
+.personal-catalog .status-mark {
+    display: grid;
+    place-items: center;
+    color: var(--chart-2);
+    flex-shrink: 0;
+}
+.personal-catalog .offline-banner strong {
+    font-size: 12px;
+    font-weight: 600;
+}
+.personal-catalog .offline-banner p {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+    line-height: 1.5;
+}
+.personal-catalog .offline-warning {
+    border-color: var(--chart-4);
+}
+.personal-catalog .offline-warning .status-mark {
+    color: var(--foreground);
+}
+.personal-catalog .success-message {
+    color: var(--chart-2);
+    font-size: 12px;
+    min-height: 16px;
+    margin: 8px 0;
+}
+.personal-catalog .error-message {
+    border: 1px solid color-mix(in srgb, var(--destructive) 30%, transparent);
+    background: color-mix(in srgb, var(--destructive) 7%, var(--card));
+    color: var(--destructive);
+    padding: 12px;
+    font-size: 13px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+.personal-catalog .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.15fr;
+    gap: 16px;
+    margin: 16px 0 24px;
+}
+.personal-catalog .stats article,
+.personal-catalog .panel {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card);
+    color: var(--card-foreground);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+}
+.personal-catalog .stats article {
+    padding: 20px;
+}
+.personal-catalog .stats article > span {
+    display: block;
+    color: var(--muted-foreground);
+    font-size: 12px;
+}
+.personal-catalog .stats strong {
+    display: block;
+    font-size: 30px;
+    font-weight: 700;
+    margin: 8px 0 4px;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+}
+.personal-catalog .stats small {
+    color: var(--muted-foreground);
+    font-size: 11px;
+}
+.personal-catalog .stats em {
+    color: var(--muted-foreground);
+    font-size: 16px;
+    font-weight: 400;
+    font-style: normal;
+}
+.personal-catalog .storage-stat strong {
+    font-size: 18px;
+    padding: 6px 0;
+}
+.personal-catalog .catalog-grid {
+    display: grid;
+    grid-template-columns: minmax(290px, 0.8fr) minmax(0, 1.5fr);
+    gap: 24px;
+    align-items: start;
+}
+.personal-catalog .right-column {
+    display: grid;
+    gap: 24px;
+    min-width: 0;
+}
+.personal-catalog .panel {
+    overflow: hidden;
+}
+.personal-catalog .panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 20px 16px;
+}
+.personal-catalog h2 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.personal-catalog .panel-heading p {
+    margin-top: 4px;
+    color: var(--muted-foreground);
+    font-size: 12px;
+}
+:where(.personal-catalog, .personal-dialog) .eyebrow {
+    color: var(--muted-foreground);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+}
+.personal-catalog :is(.step-tag, .count-badge) {
+    padding: 4px 8px;
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 8px;
+}
+.personal-catalog .form-panel form {
+    padding: 0 20px 20px;
+}
+.personal-catalog fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+.personal-catalog label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    margin: 16px 0 8px;
+}
+.personal-catalog :is(input, select) {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--input);
+    border-radius: 8px;
+    padding: 10px 12px;
+    min-height: 40px;
+    font-size: 13px;
+    color: var(--foreground);
+    background: var(--background);
+}
+.personal-catalog input::placeholder {
+    color: var(--muted-foreground);
+}
+.personal-catalog :is(input, select):disabled {
+    background: var(--muted);
+}
+.personal-catalog .photo-field {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: color-mix(in srgb, var(--muted) 50%, var(--card));
+}
+.personal-catalog .photo-field > div:last-child {
+    min-width: 0;
+    flex: 1;
+}
+.personal-catalog .photo-field label {
+    margin-top: 0;
+}
+.personal-catalog .photo-preview {
+    width: 64px;
+    height: 72px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: var(--secondary);
+    color: var(--muted-foreground);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+.personal-catalog .photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.personal-catalog input[type='file'] {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+    min-height: 28px;
+    font-size: 11px;
+}
+.personal-catalog input::file-selector-button {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    margin-right: 6px;
+    color: var(--foreground);
+    background: var(--card);
+    font: inherit;
+    cursor: pointer;
+}
+.personal-catalog .field-help {
+    color: var(--muted-foreground);
+    font-size: 11px;
+    margin-top: 6px;
+    line-height: 1.5;
+}
+.personal-catalog .field-error {
+    color: var(--destructive);
+    font-size: 12px;
+    margin-top: 6px;
+}
+.personal-catalog .two-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+:where(.personal-catalog, .personal-dialog) .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+}
+.personal-catalog .form-panel .form-actions .primary {
+    flex: 1;
+}
+.personal-catalog .search-form {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+}
+.personal-catalog .search-form > div {
+    flex: 1;
+    min-width: 0;
+}
+.personal-catalog .search-form .search-name {
+    flex: 1.25;
+}
+.personal-catalog .search-form label {
+    margin-top: 0;
+    font-size: 11px;
+}
+.personal-catalog .search-form :is(input, select) {
+    font-size: 12px;
+    padding: 10px;
+}
+.personal-catalog .text-button {
+    background: transparent;
+    color: var(--foreground);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px;
+    border-radius: 8px;
+}
+.personal-catalog .text-button:hover {
+    background: var(--accent);
+}
+.personal-catalog .danger-text {
+    color: var(--destructive);
+}
+.personal-catalog .clear-search {
+    margin: 8px 12px;
+}
+.personal-catalog .empty-state {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--muted-foreground);
+}
+.personal-catalog .empty-state > span {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 16px;
+    border-radius: 16px;
+    background: var(--muted);
+    color: var(--foreground);
+}
+.personal-catalog .empty-state h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 8px;
+}
+.personal-catalog .empty-state p {
+    max-width: 320px;
+    margin: auto;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.personal-catalog .people-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 420px;
+    overflow: auto;
+}
+.personal-catalog .people-list li + li {
+    border-top: 1px solid var(--border);
+}
+.personal-catalog .person-row {
+    display: flex;
+    align-items: center;
+    padding: 18px 20px;
+    gap: 12px;
+}
+.personal-catalog .avatar {
+    width: 44px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+.personal-catalog .person-info {
+    flex: 1;
+    min-width: 0;
+}
+.personal-catalog .person-info h3 {
+    font-size: 13px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.personal-catalog .person-info p {
+    font-size: 11px;
+    margin: 4px 0 8px;
+    color: var(--muted-foreground);
+}
+.personal-catalog .area-pill {
+    display: inline-block;
+    border-radius: 6px;
+    padding: 3px 7px;
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    font-size: 10px;
+    font-weight: 500;
+}
+.personal-catalog .row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.personal-catalog .row-actions .text-button {
+    font-size: 11px;
+    padding: 8px 6px;
+}
+.personal-catalog figure {
+    margin: 0;
+    padding: 0 20px 20px;
+}
+.personal-catalog .area-chart {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+}
+.personal-catalog .chart-label {
+    fill: var(--muted-foreground);
+    font-size: 12px;
+}
+.personal-catalog .chart-value {
+    fill: var(--foreground);
+    font-size: 13px;
+    font-weight: 600;
+}
+.personal-catalog .chart-track {
+    fill: var(--muted);
+}
+.personal-catalog .chart-bar {
+    fill: var(--chart-1);
+}
+.personal-catalog .bar-1 {
+    fill: var(--chart-2);
+}
+.personal-catalog .bar-2 {
+    fill: var(--chart-3);
+}
+.personal-catalog .bar-3 {
+    fill: var(--chart-4);
+}
+.personal-catalog figcaption {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+}
+.personal-catalog .migration-panel {
+    margin-top: 24px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--muted-foreground);
+    font-size: 12px;
+}
+.personal-catalog .migration-panel summary {
+    padding: 16px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--foreground);
+}
+.personal-catalog .migration-panel > div {
+    padding: 0 16px 16px;
+    line-height: 1.8;
+}
+.personal-catalog .migration-panel p {
+    margin-bottom: 12px;
+}
+.personal-catalog .demo-result {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--muted);
+    color: var(--foreground);
+}
+.personal-dialog {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: min(460px, calc(100% - 32px));
+    max-height: calc(100vh - 40px);
+    margin: auto;
+    padding: 0;
+    overflow: auto;
+    color: var(--foreground);
+    background: var(--card);
+    box-shadow: 0 20px 50px rgb(0 0 0 / 15%);
+}
+.personal-dialog::backdrop {
+    background: color-mix(in srgb, var(--foreground) 50%, transparent);
+}
+.personal-dialog .dialog-content {
+    padding: 24px;
+}
+.personal-dialog h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+.personal-dialog p:not(.eyebrow) {
+    font-size: 14px;
+    line-height: 1.6;
+}
+.personal-dialog .detail-photo {
+    width: 94px;
+    height: 105px;
+    object-fit: cover;
+    border-radius: 12px;
+}
+.personal-dialog .person-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    font-size: 13px;
+    margin: 20px 0 24px;
+}
+.personal-dialog dt {
+    color: var(--muted-foreground);
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+.personal-dialog dd {
+    overflow-wrap: anywhere;
+}
+@media (min-width: 1500px) {
+    .personal-catalog .catalog-grid {
+        grid-template-columns: 380px 1fr;
+    }
+}
+@media (max-width: 1100px) {
+    .personal-catalog .catalog-grid {
+        grid-template-columns: 1fr;
+    }
+    .personal-catalog .photo-field {
+        max-width: 440px;
+    }
+}
+@media (max-width: 600px) {
+    .personal-catalog .page-heading {
+        flex-direction: column;
+        align-items: start;
+        gap: 16px;
+    }
+    .personal-catalog .stats {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    .personal-catalog .stats article {
+        padding: 16px;
+    }
+    .personal-catalog .storage-stat {
+        grid-column: 1 / -1;
+    }
+    .personal-catalog .storage-stat strong {
+        font-size: 18px;
+    }
+    .personal-catalog .search-form {
+        flex-wrap: wrap;
+    }
+    .personal-catalog .search-form > button {
+        width: 100%;
+    }
+    .personal-catalog .person-row {
+        flex-wrap: wrap;
+    }
+    .personal-catalog .person-info {
+        flex-basis: calc(100% - 70px);
+    }
+    .personal-catalog .row-actions {
+        margin-left: 56px;
+        justify-content: start;
+    }
+    .personal-catalog .row-actions .text-button {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    .personal-catalog :is(.chart-label, .chart-value) {
+        font-size: 16px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation: none !important;
+        transition: none !important;
+    }
+}

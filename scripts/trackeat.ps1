@@ -160,6 +160,12 @@ try {
         Artisan @('config:clear')
         Database-Helper @{mode='check'}
         if ($CheckOnly) { Write-Host 'Conexion y requisitos correctos.' -ForegroundColor Green; exit 0 }
+        # El catalogo usa archivos compilados propios, tambien durante el desarrollo con Vite.
+        Push-Location (Join-Path $root 'frontend')
+        try {
+            & $node.Source $vite build --config vite.personal.config.js
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el catalogo de personal.' }
+        } finally { Pop-Location }
         $BackendPort = Free-Port $BackendPort
         if ($FrontendPort -eq $BackendPort) { $FrontendPort++ }
         $FrontendPort = Free-Port $FrontendPort
