@@ -4,8 +4,6 @@
     import Users from '@lucide/svelte/icons/users';
     import UserRound from '@lucide/svelte/icons/user-round';
     import Plus from '@lucide/svelte/icons/plus';
-    import CircleCheck from '@lucide/svelte/icons/circle-check';
-    import Clock from '@lucide/svelte/icons/clock';
     import {
         AREAS,
         TURNOS,
@@ -37,7 +35,6 @@
     let searchName = $state('');
     let searchArea = $state('');
     let online = $state(true);
-    let offlineState = $state('preparing');
     let offlineError = $state('');
     let migration = $state(null);
     let demoResult = $state(null);
@@ -56,7 +53,6 @@
 
     const areaCounts = $derived(AREAS.map((area) => ({ area, total: records.filter((person) => person.area === area).length })));
     const maxCount = $derived(Math.max(1, ...areaCounts.map((entry) => entry.total)));
-    const occupiedAreas = $derived(areaCounts.filter((entry) => entry.total > 0).length);
     const formatDate = (value) => new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(`${value}T12:00:00`));
 
     function readableError(caught) {
@@ -100,16 +96,9 @@
             channel.onmessage = reloadCatalog;
         }
         reloadCatalog();
-        prepareOffline()
-            .then(() => {
-                if (alive) offlineState = 'ready';
-            })
-            .catch((caught) => {
-                if (alive) {
-                    offlineState = 'error';
-                    offlineError = readableError(caught);
-                }
-            });
+        prepareOffline().catch((caught) => {
+            if (alive) offlineError = readableError(caught);
+        });
         return () => {
             alive = false;
             refreshSequence += 1;
@@ -309,45 +298,11 @@
             >
         </div>
 
-        <div class="offline-banner" class:offline-warning={offlineState === 'error'} role="status">
-            <span class="status-mark" aria-hidden="true"
-                >{#if offlineState === 'ready'}<CircleCheck class="size-5" />{:else}<Clock class="size-5" />{/if}</span
-            >
-            <div>
-                <strong
-                    >{offlineState === 'ready'
-                        ? 'Listo para trabajar sin conexión'
-                        : offlineState === 'error'
-                          ? 'Uso sin conexión pendiente'
-                          : 'Preparando el uso sin conexión…'}</strong
-                >
-                <p>
-                    {offlineState === 'ready'
-                        ? 'Los registros y las fotografías se guardan en este navegador.'
-                        : offlineState === 'error'
-                          ? offlineError
-                          : 'Guardando los archivos necesarios para abrir el catálogo sin red.'}
-                </p>
-            </div>
-        </div>
+        {#if offlineError}<div class="error-message" role="alert">{offlineError}</div>{/if}
         <p class="success-message" role="status" aria-live="polite">{message}</p>
         {#if error}<div class="error-message" role="alert">
                 {error} <button class="text-button" onclick={reloadCatalog}>Volver a cargar</button>
             </div>{/if}
-
-        <section class="stats" aria-label="Resumen del equipo">
-            <article>
-                <span>Total de integrantes</span><strong>{records.length.toString().padStart(2, '0')}</strong><small>En tu catálogo local</small>
-            </article>
-            <article>
-                <span>Áreas con personal</span><strong>{occupiedAreas.toString().padStart(2, '0')}<em> / {AREAS.length}</em></strong><small
-                    >Cada estación cuenta</small
-                >
-            </article>
-            <article class="storage-stat">
-                <span>Almacenamiento</span><strong>En este navegador</strong><small>IndexedDB · versión {DB_VERSION}</small>
-            </article>
-        </section>
 
         <div class="catalog-grid">
             <section class="panel form-panel" aria-labelledby="form-title">

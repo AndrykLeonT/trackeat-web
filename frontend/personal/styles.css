@@ -77,42 +77,15 @@
     background: var(--destructive);
     color: var(--destructive-foreground);
 }
-.personal-catalog .offline-banner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--muted);
-}
-.personal-catalog .status-mark {
-    display: grid;
-    place-items: center;
-    color: var(--chart-2);
-    flex-shrink: 0;
-}
-.personal-catalog .offline-banner strong {
-    font-size: 12px;
-    font-weight: 600;
-}
-.personal-catalog .offline-banner p {
-    margin-top: 4px;
-    font-size: 12px;
-    color: var(--muted-foreground);
-    line-height: 1.5;
-}
-.personal-catalog .offline-warning {
-    border-color: var(--chart-4);
-}
-.personal-catalog .offline-warning .status-mark {
-    color: var(--foreground);
-}
 .personal-catalog .success-message {
     color: var(--chart-2);
     font-size: 12px;
     min-height: 16px;
     margin: 8px 0;
+}
+.personal-catalog .success-message:empty {
+    min-height: 0;
+    margin: 0;
 }
 .personal-catalog .error-message {
     border: 1px solid color-mix(in srgb, var(--destructive) 30%, transparent);
@@ -123,49 +96,12 @@
     border-radius: 12px;
     margin-bottom: 16px;
 }
-.personal-catalog .stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1.15fr;
-    gap: 16px;
-    margin: 16px 0 24px;
-}
-.personal-catalog .stats article,
 .personal-catalog .panel {
     border: 1px solid var(--border);
     border-radius: 16px;
     background: var(--card);
     color: var(--card-foreground);
     box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
-}
-.personal-catalog .stats article {
-    padding: 20px;
-}
-.personal-catalog .stats article > span {
-    display: block;
-    color: var(--muted-foreground);
-    font-size: 12px;
-}
-.personal-catalog .stats strong {
-    display: block;
-    font-size: 30px;
-    font-weight: 700;
-    margin: 8px 0 4px;
-    line-height: 1.2;
-    letter-spacing: -0.025em;
-}
-.personal-catalog .stats small {
-    color: var(--muted-foreground);
-    font-size: 11px;
-}
-.personal-catalog .stats em {
-    color: var(--muted-foreground);
-    font-size: 16px;
-    font-weight: 400;
-    font-style: normal;
-}
-.personal-catalog .storage-stat strong {
-    font-size: 18px;
-    padding: 6px 0;
 }
 .personal-catalog .catalog-grid {
     display: grid;
@@ -574,19 +510,6 @@
         flex-direction: column;
         align-items: start;
         gap: 16px;
-    }
-    .personal-catalog .stats {
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-    }
-    .personal-catalog .stats article {
-        padding: 16px;
-    }
-    .personal-catalog .storage-stat {
-        grid-column: 1 / -1;
-    }
-    .personal-catalog .storage-stat strong {
-        font-size: 18px;
     }
     .personal-catalog .search-form {
         flex-wrap: wrap;

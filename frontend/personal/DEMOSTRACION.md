@@ -9,8 +9,9 @@
    o abrir `/personal/` en el mismo origen y puerto del proyecto.
 4. Como alternativa sin PHP ni PostgreSQL, ejecutar `pnpm preview:personal` en
    `frontend` y abrir la dirección que muestra Vite. Requiere haber compilado.
-5. Esperar el aviso **Listo para trabajar sin conexión**. El primer acceso
-   requiere red para instalar la caché; el catálogo no usa archivos externos.
+5. En DevTools → Application → Service Workers, comprobar que el catálogo tiene
+   un service worker activo. El primer acceso requiere red para instalar la caché;
+   el catálogo no usa archivos externos y la preparación ocurre en segundo plano.
 6. Tener a mano dos fotografías PNG/JPEG/WebP válidas de hasta 5 MiB. Las pruebas
    se pueden realizar en un perfil de navegador separado para no alterar datos.
 
