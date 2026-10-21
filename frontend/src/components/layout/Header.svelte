@@ -47,18 +47,14 @@
 
     <!-- Lado Derecho: Estado del sistema y Avatar de Usuario -->
     <div class="flex items-center gap-3">
-        <!-- Indicador de Cocina en Línea / Servicio Activo (en pantallas >= sm) -->
+        <!-- Estado discreto; el detalle queda disponible al pasar el cursor y para lectores de pantalla. -->
         <div
             role="status"
-            class="inline-flex max-w-[170px] items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium border shadow-xs {connected
-                ? 'bg-chart-2/10 text-chart-2 border-chart-2/30'
-                : 'bg-muted text-muted-foreground border-border'}"
+            aria-label={connectionLabel}
+            title={connectionLabel}
+            class="inline-flex size-5 shrink-0 items-center justify-center"
         >
-            <span class="relative flex h-2 w-2">
-                {#if connected}<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-chart-2/70 opacity-75"></span>{/if}
-                <span class="relative inline-flex h-2 w-2 rounded-full {connected ? 'bg-chart-2' : 'bg-muted-foreground'}"></span>
-            </span>
-            <span>{connectionLabel}</span>
+            <span aria-hidden="true" class="size-1.5 rounded-full {connected ? 'bg-chart-2' : 'bg-muted-foreground/60'}"></span>
         </div>
 
         <!-- Avatar / Perfil de Usuario -->

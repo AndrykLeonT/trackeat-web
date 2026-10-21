@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import process from 'node:process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const demo = process.env.TRACKEAT_DEMO_URL;
@@ -20,6 +20,10 @@ async function page(options = {}) {
     return tab;
 }
 async function waitText(tab, text) {
+    if (['Tiempo real conectado', 'Conectado al servidor'].includes(text)) {
+        await tab.getByRole('status', { name: text, exact: true }).waitFor();
+        return;
+    }
     await tab.getByText(text, { exact: false }).first().waitFor();
 }
 async function personalRecord(tab, name) {
@@ -37,18 +41,27 @@ try {
     const b = await page();
     await a.goto(demo);
     await b.goto(demo);
-    await waitText(a, 'Tiempo real conectado');
+    await waitText(a, 'Conectado al servidor');
+    await waitText(b, 'Conectado al servidor');
+    for (const tab of [a, b]) {
+        assert.equal(await tab.getByRole('heading', { name: 'Mis pedidos', exact: true }).count(), 0);
+        assert.equal(await tab.getByRole('heading', { name: '¿En qué estado están los pedidos?', exact: true }).count(), 0);
+        assert.equal(await tab.getByRole('heading', { name: 'Tablero del salón', exact: true }).count(), 0);
+    }
+    await b.getByRole('link', { name: 'Comandas', exact: true }).click();
+    await b.getByRole('link', { name: 'Ver desglose de comandas', exact: true }).click();
+    await b.waitForURL(`${base}/comandas/desglose`);
     await waitText(b, 'Tiempo real conectado');
     const sessionA = await (await a.request.get(`${base}/api/sesion`)).json();
     const sessionB = await (await b.request.get(`${base}/api/sesion`)).json();
     assert.notEqual(sessionA.user.id, sessionB.user.id);
     const initialBoard = await (await b.request.get(`${base}/api/tablero`)).json();
-    checks.push('Dos navegadores obtienen cuentas cliente distintas y suscriben canales privados.');
+    checks.push('Menú sin desglose; Comandas permite abrir la pantalla de información y gráfica de pedidos.');
     await waitText(a, 'Menú disponible sin conexión.');
     await a.context().setOffline(true);
     await a.reload();
     await a.getByRole('button', { name: 'Agregar Hamburguesa', exact: true }).waitFor();
-    await a.getByLabel('Nombre empieza con', { exact: true }).fill('hamb');
+    await a.getByLabel('Buscar producto', { exact: true }).fill('hamb');
     await a.getByRole('button', { name: 'Agregar Hamburguesa', exact: true }).click();
     await a.getByLabel('Notas para Hamburguesa', { exact: true }).fill('Sin cebolla');
     await a.getByLabel('Entrega', { exact: true }).selectOption('comer_aqui');
@@ -60,13 +73,16 @@ try {
     assert.equal(await a.getByLabel('Notas para Hamburguesa', { exact: true }).inputValue(), 'Sin cebolla');
     checks.push('Menú recarga offline, busca por índice y conserva carrito, notas y mesa; envío desactivado.');
     await a.context().setOffline(false);
-    await waitText(a, 'Tiempo real conectado');
+    await waitText(a, 'Conectado al servidor');
     const sent = a.waitForResponse((response) => response.url().endsWith('/api/pedidos') && response.request().method() === 'POST');
     await a.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
     const response = await sent;
     assert(response.ok(), await response.text());
     const order = await response.json();
     await waitText(a, `Pedido confirmado: ${order.numero_pedido}`);
+    await a.goto(`${base}/comandas/desglose`);
+    await waitText(a, 'Tiempo real conectado');
+    await a.getByRole('heading', { name: 'Mis pedidos', exact: true }).waitFor();
     await waitText(b, order.numero_pedido);
     const board = await (await b.request.get(`${base}/api/tablero`)).json();
     assert(board.pedidos.some((row) => row.id === order.id));
@@ -98,13 +114,14 @@ try {
     await card.getByRole('button', { name: 'Marcar entregado', exact: true }).click();
     await card.waitFor({ state: 'detached' });
     await b.context().setOffline(false);
-    await waitText(b, 'Tiempo real conectado');
+    await b.getByRole('status', { name: /^(Tiempo real conectado|Actualización automática · cada 5 s)$/ }).waitFor();
     await b.waitForFunction(
         (id) => [...document.querySelectorAll('li')].some((li) => li.textContent.includes(id) && li.textContent.includes('Entregado')),
         order.numero_pedido,
     );
     checks.push('Personal avanza estados; el cliente recibe los cambios; una reconexión recupera la entrega perdida.');
-    await staff.goto(`${base}/dashboard`);
+    await staff.getByRole('link', { name: 'Ver desglose de comandas', exact: true }).click();
+    await staff.waitForURL(`${base}/comandas/desglose`);
     await staff.getByRole('heading', { name: '¿En qué estado están los pedidos?' }).waitFor();
     await waitText(staff, 'Tiempo real conectado');
     assert(await staff.getByRole('table').isVisible());
@@ -116,13 +133,18 @@ try {
                 .innerText(),
         ) > 0,
     );
-    await staff.screenshot({ path: '../output/playwright/dashboard-live.png' });
+    await staff.screenshot({ path: '../output/playwright/desglose-live.png' });
+    await a.setViewportSize({ width: 390, height: 844 });
+    assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await a.screenshot({ path: '../output/playwright/desglose-live-mobile.png' });
+    await a.goto(`${base}/menu/`);
+    await waitText(a, 'Conectado al servidor');
     await a.screenshot({ path: '../output/playwright/menu-live.png' });
     await a.setViewportSize({ width: 390, height: 844 });
-    await waitText(a, 'Tiempo real conectado');
+    await waitText(a, 'Conectado al servidor');
     assert(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await a.screenshot({ path: '../output/playwright/menu-live-mobile.png' });
-    checks.push('Gráfico con datos reales, tabla accesible y menú sin desbordamiento a 390 px.');
+    checks.push('Desglose con datos reales y tabla accesible; desglose y menú sin desbordamiento a 390 px.');
 
     const personal = await page();
     await personal.goto(`${base}/personal/`);
@@ -161,9 +183,22 @@ try {
             }),
     );
     assert(blob);
-    await personal.getByText('Acerca de la base local y su migración', { exact: true }).click();
-    await personal.getByRole('button', { name: 'Demostrar migración v1 → v2', exact: true }).click();
-    await waitText(personal, 'Migración comprobada:');
+    const migration = await personal.evaluate(
+        async (source) => {
+            const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+            try {
+                const db = await import(url);
+                return await db.demonstrateMigration((await db.listPeople())[0]);
+            } finally {
+                URL.revokeObjectURL(url);
+            }
+        },
+        await readFile('personal/db.js', 'utf8'),
+    );
+    assert.equal(migration.antes, 1);
+    assert.equal(migration.despues, 2);
+    assert.equal(migration.registros, 1);
+    assert(migration.bytes > 0);
     await personal.getByRole('button', { name: 'Editar Angélica Prueba', exact: true }).click();
     await personal.getByRole('button', { name: 'Guardar cambios', exact: true }).waitFor();
     await personal.getByLabel('Área', { exact: true }).selectOption('Servicio');

@@ -4,19 +4,7 @@
     import Users from '@lucide/svelte/icons/users';
     import UserRound from '@lucide/svelte/icons/user-round';
     import Plus from '@lucide/svelte/icons/plus';
-    import {
-        AREAS,
-        TURNOS,
-        PHOTO_LIMIT,
-        DB_VERSION,
-        listPeople,
-        getPerson,
-        savePerson,
-        deletePerson,
-        getMigration,
-        demonstrateMigration,
-        today,
-    } from './db.js';
+    import { AREAS, TURNOS, PHOTO_LIMIT, listPeople, getPerson, savePerson, deletePerson, today } from './db.js';
     import { prepareOffline } from './offline.js';
 
     const emptyForm = () => ({ nombre: '', email: '', telefono: '', area: '', puesto: '', fechaIngreso: today(), turno: 'Matutino', foto: null });
@@ -36,9 +24,6 @@
     let searchArea = $state('');
     let online = $state(true);
     let offlineError = $state('');
-    let migration = $state(null);
-    let demoResult = $state(null);
-    let demonstrating = $state(false);
     let detailRecord = $state(null);
     let deletingRecord = $state(null);
     let detailDialog;
@@ -63,14 +48,13 @@
 
     async function refresh() {
         const sequence = ++refreshSequence;
-        const [all, filtered, audit] = await Promise.all([listPeople(), listPeople({ nombre: searchName, area: searchArea }), getMigration()]);
+        const [all, filtered] = await Promise.all([listPeople(), listPeople({ nombre: searchName, area: searchArea })]);
         if (!alive || sequence !== refreshSequence) return;
         const urls = Object.fromEntries(all.map((person) => [person.id, URL.createObjectURL(person.foto)]));
         Object.values(photoUrls).forEach((url) => URL.revokeObjectURL(url));
         photoUrls = urls;
         records = all;
         visible = filtered;
-        migration = audit;
         loading = false;
     }
 
@@ -256,19 +240,6 @@
             error = readableError(caught);
         } finally {
             busy = false;
-        }
-    }
-
-    async function runMigrationDemo() {
-        demonstrating = true;
-        demoResult = null;
-        error = '';
-        try {
-            demoResult = await demonstrateMigration($state.snapshot(records[0]));
-        } catch (caught) {
-            error = readableError(caught);
-        } finally {
-            demonstrating = false;
         }
     }
 </script>
@@ -526,29 +497,6 @@
                 </section>
             </div>
         </div>
-
-        <details class="migration-panel">
-            <summary>Acerca de la base local y su migración</summary>
-            <div>
-                <p>
-                    Base <code>trackeat-personal</code> · versión {DB_VERSION}. {#if migration?.desde === 1}Se conservaron {migration.registros} registros
-                        al actualizar de v1 a v2.{:else}La base se creó con el esquema actual.{/if} El turno y el índice de nombres se incorporan en la
-                    versión 2.
-                </p>
-                <p>
-                    La demostración copia un integrante real a una base temporal v1, la abre en v2 y compara sus campos, su clave y todos los bytes de
-                    la fotografía. También consulta el nuevo índice.
-                </p>
-                <button class="secondary" onclick={runMigrationDemo} disabled={loading || !records.length || demonstrating}
-                    >{demonstrating ? 'Verificando migración…' : 'Demostrar migración v1 → v2'}</button
-                >{#if !records.length}<p class="field-help">
-                        Agrega primero un integrante para usar sus datos en la demostración.
-                    </p>{/if}{#if demoResult}<p class="demo-result" role="status">
-                        Migración comprobada: v{demoResult.antes} → v{demoResult.despues}. {demoResult.registros} registro conservado ({demoResult.nombre});
-                        clave y campos intactos; fotografía de {demoResult.bytes} bytes idéntica; turno Matutino agregado; búsqueda por índice correcta.
-                    </p>{/if}
-            </div>
-        </details>
     </div>
 </AppLayout>
 

@@ -5,6 +5,7 @@ param(
     [switch] $NoBrowser,
     [ValidateRange(1,65535)] [int] $BackendPort = 8000,
     [ValidateRange(1,65535)] [int] $FrontendPort = 5173,
+    [ValidateRange(1,65535)] [int] $SocketPort = 8080,
     [ValidateRange(0,3600)] [int] $RunSeconds = 0
 )
 $ErrorActionPreference = 'Stop'
@@ -12,6 +13,7 @@ $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $backend = Join-Path $root 'backend'
 $helper = Join-Path $backend 'scripts/team-database.php'
 $processes = @()
+$liveEnvironment = @{}
 $oldAppUrl = $env:APP_URL
 $hotFile = Join-Path $backend 'public/hot'
 $oldHot = if (Test-Path -LiteralPath $hotFile) { [IO.File]::ReadAllText($hotFile) } else { $null }
@@ -23,8 +25,16 @@ function Free-Port([int] $Preferred) {
     }
     throw "No hay puertos disponibles cerca de $Preferred."
 }
+function Set-LiveEnvironment([string] $Name, [string] $Value) {
+    if (!$liveEnvironment.ContainsKey($Name)) { $liveEnvironment[$Name] = [Environment]::GetEnvironmentVariable($Name, 'Process') }
+    [Environment]::SetEnvironmentVariable($Name, $Value, 'Process')
+}
 function Quote-Argument([string] $Value) {
     return '"' + [regex]::Replace([regex]::Replace($Value, '(\\*)"', '$1$1\"'), '(\\+)$', '$1$1') + '"'
+}
+function Database-Port([int] $Preferred) {
+    try { return Free-Port $Preferred }
+    catch { return Free-Port 15433 }
 }
 function Initialize-Php {
     $command = Get-Command php.exe -ErrorAction SilentlyContinue
@@ -36,7 +46,7 @@ function Initialize-Php {
     if (!(Test-Path -LiteralPath $helper)) { throw 'Falta backend/scripts/team-database.php. Recupera ese archivo del proyecto.' }
     $script:phpFlags = @()
     $modules = (& $script:php -r 'echo json_encode(get_loaded_extensions());') | ConvertFrom-Json
-    foreach ($extension in @('pdo_pgsql','bcmath','mbstring','openssl','fileinfo')) {
+    foreach ($extension in @('pdo_pgsql','bcmath','mbstring','openssl','fileinfo','curl')) {
         if ($modules -notcontains $extension) {
             $dll = Join-Path (Split-Path $script:php) "ext/php_$extension.dll"
             if (!(Test-Path -LiteralPath $dll)) { throw "Falta la extension PHP $extension. Revisa php --ini." }
@@ -105,7 +115,7 @@ try {
         if (!$state) {
             if (Test-Path -LiteralPath (Join-Path $data 'PG_VERSION')) { throw 'Falta connection.json de la base existente. No se borrara ni reinicializara.' }
             New-Item -ItemType Directory -Path $local -Force | Out-Null
-            $state = [pscustomobject]@{ port = (Free-Port 55433); postgres_bin = $pg; password = (New-Secret); admin_password = (New-Secret) }
+            $state = [pscustomobject]@{ port = (Database-Port 55433); postgres_bin = $pg; password = (New-Secret); admin_password = (New-Secret) }
             Private-File $stateFile ($state | ConvertTo-Json)
         }
         if ($state.password -notmatch '^[0-9a-f]{48}$' -or $state.admin_password -notmatch '^[0-9a-f]{48}$' -or [int]$state.port -lt 1 -or [int]$state.port -gt 65535) { throw 'La configuracion local no tiene el formato esperado.' }
@@ -116,6 +126,15 @@ try {
                 & (Join-Path $pg 'initdb.exe') -D $data -U trackeat_admin --auth-host=scram-sha-256 --auth-local=scram-sha-256 --encoding=UTF8 --locale=C "--pwfile=$passwordFile"
                 if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear PostgreSQL local.' }
             } finally { if (Test-Path -LiteralPath $passwordFile) { Remove-Item -LiteralPath $passwordFile } }
+        }
+        & (Join-Path $pg 'pg_ctl.exe') -D $data status *> $null
+        if ($LASTEXITCODE -ne 0) {
+            $availablePort = Database-Port ([int]$state.port)
+            if ($availablePort -ne [int]$state.port) {
+                Write-Host "Puerto PostgreSQL $($state.port) no disponible; se usara $availablePort conservando los datos."
+                $state.port = $availablePort
+                Private-File $stateFile ($state | ConvertTo-Json)
+            }
         }
         [IO.File]::WriteAllText((Join-Path $data 'postgresql.auto.conf'), "listen_addresses = '127.0.0.1'`nport = $($state.port)`npassword_encryption = 'scram-sha-256'`ntimezone = 'UTC'`n")
         [IO.File]::WriteAllText((Join-Path $data 'pg_hba.conf'), "host all trackeat_admin 127.0.0.1/32 scram-sha-256`nhost trackeat trackeat 127.0.0.1/32 scram-sha-256`n")
@@ -169,11 +188,32 @@ try {
             if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el menu sin conexion.' }
         } finally { Pop-Location }
         $BackendPort = Free-Port $BackendPort
-        if ($FrontendPort -eq $BackendPort) { $FrontendPort++ }
-        $FrontendPort = Free-Port $FrontendPort
+        do {
+            $FrontendPort = Free-Port $FrontendPort
+            if ($FrontendPort -eq $BackendPort) { $FrontendPort++ } else { break }
+        } while ($true)
+        do {
+            $SocketPort = Free-Port $SocketPort
+            if ($SocketPort -in @($BackendPort, $FrontendPort)) { $SocketPort++ } else { break }
+        } while ($true)
         $url = "http://127.0.0.1:$BackendPort"
         $env:APP_URL = $url
+        # Laravel, el consumidor de colas y Reverb comparten esta configuracion local.
+        Set-LiveEnvironment 'BROADCAST_CONNECTION' 'reverb'
+        Set-LiveEnvironment 'QUEUE_CONNECTION' 'database'
+        Set-LiveEnvironment 'DB_QUEUE' "trackeat-local-$BackendPort-$SocketPort"
+        Set-LiveEnvironment 'REVERB_APP_ID' 'trackeat'
+        Set-LiveEnvironment 'REVERB_APP_KEY' 'trackeat-local'
+        Set-LiveEnvironment 'REVERB_APP_SECRET' (New-Secret)
+        Set-LiveEnvironment 'REVERB_HOST' '127.0.0.1'
+        Set-LiveEnvironment 'REVERB_PORT' ([string]$SocketPort)
+        Set-LiveEnvironment 'REVERB_SCHEME' 'http'
+        Set-LiveEnvironment 'REVERB_SERVER_HOST' '127.0.0.1'
+        Set-LiveEnvironment 'REVERB_SERVER_PORT' ([string]$SocketPort)
+        Set-LiveEnvironment 'REVERB_ALLOWED_ORIGINS' 'localhost,127.0.0.1'
+        Set-LiveEnvironment 'TRACKEAT_SOCKET_URL' "http://127.0.0.1:$SocketPort"
         $router = Join-Path $backend 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'
+        $processes += Start-Server $script:php (@($script:phpFlags) + @('artisan','reverb:start','--host=127.0.0.1',"--port=$SocketPort")) $backend 'reverb'
         $processes += Start-Server $script:php (@($script:phpFlags) + @('-S',"127.0.0.1:$BackendPort",$router)) (Join-Path $backend 'public') 'laravel'
         $processes += Start-Server $node.Source @($vite,'--host','127.0.0.1','--port',[string]$FrontendPort,'--strictPort') (Join-Path $root 'frontend') 'vite'
         $processes += Start-Server $script:php (@($script:phpFlags) + @('artisan','queue:work','--sleep=1','--tries=1')) $backend 'queue'
@@ -184,11 +224,12 @@ try {
             try {
                 $page = Invoke-WebRequest "$url/" -UseBasicParsing -TimeoutSec 2
                 $client = Invoke-WebRequest "http://127.0.0.1:$FrontendPort/@vite/client" -UseBasicParsing -TimeoutSec 2
+                $socketProbe = [Net.Sockets.TcpClient]::new('127.0.0.1', $SocketPort); $socketProbe.Dispose()
                 if ($page.StatusCode -eq 200 -and $client.StatusCode -eq 200) { $ready = $true; break }
             } catch { Start-Sleep -Milliseconds 300 }
         }
         if (!$ready) { throw 'El sitio no estuvo listo en 30 segundos. Revisa los logs.' }
-        Write-Host "Sitio listo: $url (Vite: $FrontendPort). Ctrl+C para detener." -ForegroundColor Green
+        Write-Host "Sitio listo: $url (Vite: $FrontendPort, Reverb: $SocketPort). Ctrl+C para detener." -ForegroundColor Green
         if (!$NoBrowser) { Start-Process $url }
         $stopAt = if ($RunSeconds) { [DateTime]::UtcNow.AddSeconds($RunSeconds) } else { [DateTime]::MaxValue }
         while ([DateTime]::UtcNow -lt $stopAt) {
@@ -200,6 +241,7 @@ try {
 finally {
     foreach ($process in $processes) { if (!$process.HasExited) { try { & taskkill.exe /PID $process.Id /T /F *> $null } catch { } } }
     $env:APP_URL = $oldAppUrl
+    foreach ($name in $liveEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $liveEnvironment[$name], 'Process') }
     if ($processes.Count -gt 0 -and (Test-Path -LiteralPath $hotFile) -and [IO.File]::ReadAllText($hotFile) -match ":$FrontendPort/?\s*$") {
         if ($null -ne $oldHot) { [IO.File]::WriteAllText($hotFile,$oldHot,[Text.UTF8Encoding]::new($false)) } else { Remove-Item -LiteralPath $hotFile }
     }

@@ -3,7 +3,7 @@
 Se utilizan dos archivos `.bat` y un solo script auxiliar: `scripts/trackeat.ps1`.
 
 1. Ejecutar **iniciar-base-datos.bat** para encender PostgreSQL local, configurar `.env`, aplicar migraciones y cargar los ejemplos.
-2. Ejecutar **iniciar.bat** para abrir el sitio web con Laravel, Vite y colas.
+2. Ejecutar **iniciar.bat** para abrir el sitio web con Laravel, Vite, colas y Reverb (actualizaciones en tiempo real).
 
 No se pide IP, subred, usuario ni contrasena. Cada computadora tiene la misma estructura y datos de ejemplo iniciales; los cambios posteriores se guardan localmente. Los siguientes arranques conservan los datos y no duplican los ejemplos.
 
@@ -22,7 +22,9 @@ Tambien puede usarse npm para el frontend. El script detecta PHP en el PATH, XAM
 
 ## Puertos y datos
 
-El sitio intenta usar el puerto 8000 y Vite el 5173. Si alguno esta ocupado, elige automaticamente el siguiente disponible y muestra la direccion que abre en el navegador. No cierra otros proyectos ni otras bases de datos.
+El sitio intenta usar el puerto 8000, Vite el 5173 y Reverb el 8080. Si alguno esta ocupado, elige automaticamente el siguiente disponible y muestra la direccion que abre en el navegador. No cierra otros proyectos ni otras bases de datos. La configuracion de Reverb se comparte automaticamente entre los procesos del arranque, sin editar las credenciales de `.env`.
+
+Las comandas, el menu y el tablero reciben los eventos del socket y consultan cambios cada cinco segundos como respaldo. El encabezado muestra un punto discreto; al pasar el cursor se puede consultar el estado de la conexion o la actualizacion automatica de respaldo. Al recuperar internet o volver a la ventana se consultan los cambios pendientes.
 
 La base se llama `trackeat`, escucha solo en `127.0.0.1` y utiliza normalmente el puerto 55433. Si ese puerto esta ocupado en la primera creacion, elige otro disponible y lo recuerda. Se guarda en `backend/storage/app/private/local-postgres/data`. Reutiliza la base que ya exista en ese directorio, sin borrarla ni reinicializarla.
 

@@ -2,6 +2,7 @@ param(
     [switch] $Tunnel,
     [switch] $SkipBuild,
     [switch] $TestDatabase,
+    [ValidateRange(1,65535)] [int] $WebPort = 8000,
     [ValidateRange(1,65535)] [int] $SocketPort = 8080,
     [string] $WebUrl = 'http://localhost:8000',
     [string] $SocketUrl = 'http://localhost:8080',
@@ -43,10 +44,12 @@ function Wait-Tunnel([string] $Name, $Process) {
     throw "El tunel $Name no se registro en 45 segundos. Revisa $log"
 }
 try {
+    if ($WebPort -eq $SocketPort) { throw 'WebPort y SocketPort deben ser diferentes.' }
+    if ($WebUrl -eq 'http://localhost:8000') { $WebUrl = "http://localhost:$WebPort" }
     if ($SocketUrl -eq 'http://localhost:8080') { $SocketUrl = "http://localhost:$SocketPort" }
-    foreach ($port in @(8000,$SocketPort)) {
+    foreach ($port in @($WebPort,$SocketPort)) {
         $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $port)
-        try { $listener.Start() } catch { throw "El puerto $port esta ocupado. Deten el servidor anterior." } finally { $listener.Stop() }
+        try { $listener.Start() } catch { throw "El puerto $port no esta disponible. Elige otro con -WebPort o -SocketPort." } finally { $listener.Stop() }
     }
     $taskPhp = (Get-Command php.exe -ErrorAction Stop).Source
     $taskPhpDir = Split-Path $taskPhp
@@ -63,6 +66,8 @@ try {
     Set-TaskEnv 'TRACKEAT_DEMO_ENABLED' 'true'
     Set-TaskEnv 'BROADCAST_CONNECTION' 'reverb'
     Set-TaskEnv 'QUEUE_CONNECTION' 'database'
+    # Cada presentacion consume sus eventos con su propia configuracion de Reverb.
+    Set-TaskEnv 'DB_QUEUE' "trackeat-presentacion-$WebPort-$SocketPort"
     Set-TaskEnv 'REVERB_APP_ID' 'trackeat'
     Set-TaskEnv 'REVERB_APP_KEY' 'trackeat-local'
     $bytes = New-Object byte[] 32
@@ -89,7 +94,7 @@ try {
             if (!(Test-Path -LiteralPath $binary)) { throw 'No se encontro cloudflared.exe. Reinstala npm install -g cloudflared.' }
             $cloudflared = $binary
         }
-        $webTunnel = Start-TaskProcess $cloudflared @('tunnel','--protocol','http2','--url','http://localhost:8000') $taskRoot 'tunnel-web'
+        $webTunnel = Start-TaskProcess $cloudflared @('tunnel','--protocol','http2','--url',"http://127.0.0.1:$WebPort") $taskRoot 'tunnel-web'
         $taskProcesses += $webTunnel
         $socketTunnel = Start-TaskProcess $cloudflared @('tunnel','--protocol','http2','--url',"http://localhost:$SocketPort") $taskRoot 'tunnel-socket'
         $taskProcesses += $socketTunnel
@@ -106,7 +111,7 @@ try {
     Task-Artisan @('config:clear')
     Task-Artisan @('migrate','--force')
     $router = Join-Path $taskBackend 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'
-    $taskProcesses += Start-TaskProcess $taskPhp (@($taskFlags) + @('-S','127.0.0.1:8000',$router)) (Join-Path $taskBackend 'public') 'presentacion-web'
+    $taskProcesses += Start-TaskProcess $taskPhp (@($taskFlags) + @('-S',"127.0.0.1:$WebPort",$router)) (Join-Path $taskBackend 'public') 'presentacion-web'
     $taskProcesses += Start-TaskProcess $taskPhp (@($taskFlags) + @('artisan','reverb:start','--host=127.0.0.1',"--port=$SocketPort")) $taskBackend 'presentacion-reverb'
     $taskProcesses += Start-TaskProcess $taskPhp (@($taskFlags) + @('artisan','queue:work','--sleep=1','--tries=5','--timeout=30','--backoff=1')) $taskBackend 'presentacion-queue'
     $deadline = [DateTime]::UtcNow.AddSeconds(30)
@@ -114,7 +119,7 @@ try {
     while ([DateTime]::UtcNow -lt $deadline) {
         foreach ($process in $taskProcesses) { if ($process.HasExited) { throw 'Un proceso termino. Revisa backend/storage/logs/presentacion-*.log.' } }
         try {
-            $response = Invoke-WebRequest 'http://127.0.0.1:8000/api/catalogo' -UseBasicParsing -TimeoutSec 2
+            $response = Invoke-WebRequest "http://127.0.0.1:$WebPort/api/catalogo" -UseBasicParsing -TimeoutSec 2
             $probe = [Net.Sockets.TcpClient]::new('127.0.0.1',$SocketPort); $probe.Dispose()
             if ($response.StatusCode -eq 200) { $ready = $true; break }
         } catch { Start-Sleep -Milliseconds 300 }

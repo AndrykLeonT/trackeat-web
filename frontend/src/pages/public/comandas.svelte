@@ -5,6 +5,7 @@
     import ComandaCard from '@/components/ui/comanda-card.svelte';
     import { api, session, connectLive, staffRoles } from '@/lib/trackeat';
     import CookingPot from '@lucide/svelte/icons/cooking-pot';
+    import ChartColumn from '@lucide/svelte/icons/chart-column';
     let orders = $state([]);
     let user = $state(null);
     let error = $state('');
@@ -39,8 +40,8 @@
             .then(async (data) => {
                 if (disposed) return;
                 user = data.user;
-                if (!user || !staffRoles.includes(user.rol)) {
-                    error = 'Inicia sesión como personal para gestionar comandas.';
+                if (!user) {
+                    error = 'Inicia sesión para consultar tus comandas.';
                     return;
                 }
                 stop = connectLive(data, refresh, (label, value) => {
@@ -79,11 +80,33 @@
     <div class="space-y-6">
         <div class="flex flex-wrap justify-between gap-3 border-b border-border pb-5">
             <div>
-                <h1 class="flex items-center gap-2 text-2xl font-bold"><CookingPot class="size-6 text-primary" />Comandas en Cocina</h1>
-                <p class="mt-1 text-sm text-muted-foreground">Pedidos guardados y preparación por estación.</p>
+                <h1 class="flex items-center gap-2 text-2xl font-bold">
+                    <CookingPot class="size-6 text-primary" />{staffRoles.includes(user?.rol) ? 'Comandas en Cocina' : 'Comandas'}
+                </h1>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    {staffRoles.includes(user?.rol)
+                        ? 'Pedidos guardados y preparación por estación.'
+                        : 'Consulta la preparación de tus pedidos en tiempo real.'}
+                </p>
             </div>
             <a href="/menu/" class="self-start rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Ver menú</a>
         </div>
+        <section
+            aria-labelledby="orders-breakdown-title"
+            class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 shadow-xs"
+        >
+            <div>
+                <h2 id="orders-breakdown-title" class="flex items-center gap-2 text-lg font-bold">
+                    <ChartColumn class="size-5 text-primary" />Información y gráfica de pedidos
+                </h2>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Consulta los pedidos, sus estados y el desglose de comandas en una pantalla dedicada.
+                </p>
+            </div>
+            <a href="/comandas/desglose" class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                >Ver desglose de comandas</a
+            >
+        </section>
         {#if error}<p role="alert" class="text-sm text-destructive">{error}</p>{/if}
         <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {#each orders.filter((order) => !['entregado', 'cancelado'].includes(order.estado)) as order (order.id)}<ComandaCard

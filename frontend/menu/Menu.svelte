@@ -1,8 +1,7 @@
 <script>
     import { onMount } from 'svelte';
     import AppLayout from '@/layouts/AppLayout.svelte';
-    import OrderChart from '@/components/OrderChart.svelte';
-    import { api, session, connectLive, states, staffRoles } from '@/lib/trackeat';
+    import { api, session } from '@/lib/trackeat';
     import { prepareOffline } from '../personal/offline.js';
     import * as db from './db.js';
     import logo from '@/assets/images/logo.png';
@@ -24,14 +23,9 @@
     let message = $state('');
     let busy = $state(false);
     let initialized = $state(false);
-    let orders = $state([]);
-    let board = $state({ estados: {}, pedidos: [] });
     const total = $derived(cart.items.reduce((sum, item) => sum + item.cantidad * Number(item.precio), 0));
     const activeUser = $derived(user && (!user.demo_expires_at || Date.parse(user.demo_expires_at) > Date.now()));
-    let disconnect = () => {};
     let searchVersion = 0;
-    let refreshing = false;
-    let refreshAgain = false;
 
     function status(label, value) {
         connectionLabel = label;
@@ -49,6 +43,11 @@
             error = e.message;
         }
     }
+    async function clearFilters() {
+        name = '';
+        category = '';
+        await search();
+    }
     async function syncCatalog() {
         const data = await api('catalogo');
         await db.saveCatalog(data);
@@ -56,36 +55,9 @@
         lastUpdated = data.actualizado;
         await search();
     }
-    async function refreshOrders() {
-        if (!user || !online) return;
-        if (refreshing) {
-            refreshAgain = true;
-            return;
-        }
-        refreshing = true;
-        try {
-            orders = await api('pedidos');
-            if (user.demo_room || staffRoles.includes(user.rol)) board = await api('tablero');
-        } catch (e) {
-            error = e.message;
-            if (e.status === 401 || e.status === 403) {
-                disconnect();
-                status('Sesión no disponible', false);
-                user = null;
-                orders = [];
-            }
-        } finally {
-            refreshing = false;
-            if (refreshAgain) {
-                refreshAgain = false;
-                void refreshOrders();
-            }
-        }
-    }
     async function reconnect() {
         online = navigator.onLine;
         if (!online) {
-            disconnect();
             status('Sin conexión', false);
             return;
         }
@@ -94,10 +66,7 @@
             await syncCatalog();
             const data = await session();
             user = data.user;
-            disconnect();
-            disconnect = connectLive(data, refreshOrders, status);
-            if (!user) status('Inicia sesión para pedir', false);
-            await refreshOrders();
+            status(user ? 'Conectado al servidor' : 'Inicia sesión para pedir', !!user);
         } catch (e) {
             error = `Se conserva el catálogo local. ${e.message}`;
             status('Servidor no disponible', false);
@@ -122,7 +91,6 @@
                         error = e.message;
                     });
                 await reconnect();
-                if (disposed) disconnect();
             } catch (e) {
                 error = e.message;
             }
@@ -131,7 +99,6 @@
         window.addEventListener('offline', reconnect);
         return () => {
             disposed = true;
-            disconnect();
             window.removeEventListener('online', reconnect);
             window.removeEventListener('offline', reconnect);
         };
@@ -182,7 +149,6 @@
             cart = emptyCart();
             await persist();
             message = `Pedido confirmado: ${order.numero_pedido}. Total: $${Number(order.total).toFixed(2)} MXN.`;
-            await refreshOrders();
         } catch (e) {
             if ([401, 403, 422, 429].includes(e.status)) {
                 cart.pending = false;
@@ -201,7 +167,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
             <div>
                 <h1 class="flex items-center gap-2 text-2xl font-bold"><Utensils class="size-6 text-primary" />Menú Digital</h1>
-                <p class="mt-1 text-sm text-muted-foreground">Elige tus productos y sigue tu pedido en tiempo real.</p>
+                <p class="mt-1 text-sm text-muted-foreground">Elige tus productos y confirma tu pedido. Consulta su seguimiento en Comandas.</p>
             </div>
             {#if user}<p class="text-sm">{user.name}</p>{:else}<a
                     href="/login"
@@ -221,8 +187,10 @@
             <section aria-label="Catálogo de productos" class="min-w-0 space-y-4">
                 <div class="grid gap-3 sm:grid-cols-2">
                     <label class="text-sm font-medium"
-                        >Nombre empieza con<input
+                        >Buscar producto<input
                             type="search"
+                            placeholder="Ej. Hamburguesa"
+                            aria-describedby="product-search-help"
                             bind:value={name}
                             oninput={search}
                             class="mt-1 w-full rounded-xl border border-input bg-background p-2.5"
@@ -238,6 +206,14 @@
                                 >{/each}</select
                         ></label
                     >
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p id="product-search-help" class="text-sm text-muted-foreground">Busca por el nombre del producto, no por tu nombre.</p>
+                    {#if name || category}<button
+                            type="button"
+                            onclick={clearFilters}
+                            class="rounded-xl border border-input px-3 py-2 text-sm font-semibold">Mostrar todo el menú</button
+                        >{/if}
                 </div>
                 <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
                     {#each catalog as product (product.id)}
@@ -269,7 +245,9 @@
                                 </div>
                             </div>
                         </article>
-                    {:else}<p class="text-sm text-muted-foreground">No hay productos para mostrar.</p>{/each}
+                    {:else}<p class="text-sm text-muted-foreground">
+                            No hay productos que coincidan. Pulsa «Mostrar todo el menú» para quitar los filtros.
+                        </p>{/each}
                 </div>
             </section>
             <section aria-labelledby="cart-title" class="min-w-0 self-start rounded-2xl border border-border bg-card p-5 shadow-xs">
@@ -335,20 +313,5 @@
                 </form>
             </section>
         </div>
-        {#if user}
-            <section class="rounded-2xl border border-border bg-card p-5" aria-labelledby="my-orders">
-                <h2 id="my-orders" class="text-lg font-bold">Mis pedidos</h2>
-                <ul class="mt-3 space-y-3" aria-live="polite">
-                    {#each orders as order (order.id)}<li class="flex flex-wrap justify-between gap-2 border-b border-border py-2 text-sm">
-                            <span class="break-all">{order.numero_pedido}</span><strong
-                                >{states[order.estado]} · ${Number(order.total).toFixed(2)}</strong
-                            >
-                        </li>{:else}<li class="text-sm text-muted-foreground">Aún no has enviado pedidos.</li>{/each}
-                </ul>
-            </section>
-            {#if user.demo_room || staffRoles.includes(user.rol)}<div class="grid gap-5 lg:grid-cols-2">
-                    <OrderChart totals={board.estados} orders={board.pedidos} showOrders={!!user.demo_room} />
-                </div>{/if}
-        {/if}
     </div>
 </AppLayout>

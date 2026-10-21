@@ -1,6 +1,6 @@
 <script>
     import { states } from '@/lib/trackeat';
-    let { totals = {}, orders = [], showOrders = false } = $props();
+    let { totals = {}, orders = [], showOrders = false, demoRoom = true } = $props();
     const entries = $derived(Object.entries(states).map(([state, label]) => ({ state, label, total: Number(totals[state] || 0) })));
     const max = $derived(Math.max(1, ...entries.map((entry) => entry.total)));
 </script>
@@ -28,7 +28,9 @@
 {#if showOrders}
     <section class="rounded-2xl border border-border bg-card p-5">
         <h2 class="text-lg font-bold">Tablero del salón</h2>
-        <p class="text-sm text-muted-foreground">Los pedidos de esta demostración aparecen aquí sin recargar.</p>
+        <p class="text-sm text-muted-foreground">
+            {demoRoom ? 'Los pedidos de esta demostración' : 'Los pedidos del salón'} aparecen aquí sin recargar.
+        </p>
         <ul class="mt-3 space-y-2" aria-live="polite">
             {#each orders.slice(0, 10) as order (order.id)}
                 <li class="flex flex-wrap justify-between gap-2 border-b border-border py-2 text-sm">

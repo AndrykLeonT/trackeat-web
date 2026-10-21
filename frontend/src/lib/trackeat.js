@@ -39,67 +39,131 @@ export async function session() {
 }
 
 export function connectLive(data, refresh, status) {
-    if (!data.user || !data.socket.key) return () => {};
+    if (!data.user) {
+        status('Inicia sesión para recibir actualizaciones', false);
+        return () => {};
+    }
     if (data.user.demo_expires_at && Date.parse(data.user.demo_expires_at) <= Date.now()) {
         status('Demostración terminada', false);
         return () => {};
     }
-    const endpoint = new URL(data.socket.url);
     let timer;
     let expiry;
+    let poll;
     let stopped = false;
-    const echo = new Echo({
-        broadcaster: 'reverb',
-        client: new Pusher(data.socket.key, {
-            cluster: 'mt1',
-            wsHost: endpoint.hostname,
-            wsPort: Number(endpoint.port || (endpoint.protocol === 'https:' ? 443 : 80)),
-            wssPort: Number(endpoint.port || 443),
-            forceTLS: endpoint.protocol === 'https:',
-            enabledTransports: ['ws', 'wss'],
-            disableStats: true,
-            channelAuthorization: { endpoint: '/broadcasting/auth', transport: 'ajax', headers: { 'X-CSRF-TOKEN': data.csrf } },
-        }),
-    });
-    const connection = echo.connector.pusher.connection;
+    let refreshing = false;
+    let echo;
+    const subscribed = new Set();
     const channels = [`trackeat.usuario.${data.user.id}`];
     if (staffRoles.includes(data.user.rol)) channels.push('trackeat.personal');
     if (data.user.demo_room) channels.push(`trackeat.demo.${data.user.demo_room}`);
+    const online = () => navigator.onLine !== false;
+    const ready = () => subscribed.size === channels.length;
+    function fallback() {
+        if (!stopped) status(online() ? 'Actualización automática · cada 5 s' : 'Sin conexión', false);
+    }
+    async function update() {
+        if (stopped || refreshing || !online()) return;
+        refreshing = true;
+        try {
+            await refresh();
+        } catch {
+            if (!stopped) status('Servidor no disponible', false);
+        } finally {
+            refreshing = false;
+        }
+    }
     function sync() {
+        if (stopped) return;
         clearTimeout(timer);
-        timer = setTimeout(
-            () => {
-                if (!stopped) refresh();
-            },
-            100 + Math.random() * 150,
-        );
+        timer = setTimeout(update, 100 + Math.random() * 150);
     }
-    for (const channel of channels) {
-        echo.private(channel)
-            .listen('.pedido.actualizado', sync)
-            .subscribed(() => {
-                status('Tiempo real conectado', true);
-                sync();
-            })
-            .error(() => status('Sin autorización al socket', false));
+    function schedulePoll() {
+        // Also recover events lost while the socket or broadcast worker was unavailable.
+        poll = setTimeout(async () => {
+            if (stopped) return;
+            if (!ready()) fallback();
+            await update();
+            if (!stopped) schedulePoll();
+        }, 5000);
     }
-    connection.bind('state_change', ({ current }) => {
-        if (current !== 'connected') status(current === 'connecting' ? 'Conectando tiempo real…' : 'Tiempo real desconectado', false);
-    });
+    function offline() {
+        subscribed.clear();
+        fallback();
+    }
+    function resume() {
+        if (!ready()) fallback();
+        sync();
+    }
+    function stop() {
+        stopped = true;
+        clearTimeout(timer);
+        clearTimeout(expiry);
+        clearTimeout(poll);
+        window.removeEventListener('online', resume);
+        window.removeEventListener('offline', offline);
+        window.removeEventListener('focus', resume);
+        echo?.disconnect();
+    }
+    window.addEventListener('online', resume);
+    window.addEventListener('offline', offline);
+    window.addEventListener('focus', resume);
+    schedulePoll();
     if (data.user.demo_expires_at) {
         expiry = setTimeout(
             () => {
-                echo.disconnect();
+                stop();
                 status('Demostración terminada', false);
-                refresh();
+                void Promise.resolve()
+                    .then(refresh)
+                    .catch(() => {});
             },
             Math.max(0, Date.parse(data.user.demo_expires_at) - Date.now()),
         );
     }
-    return () => {
-        stopped = true;
-        clearTimeout(timer);
-        clearTimeout(expiry);
-        echo.disconnect();
-    };
+    if (!data.socket?.key || !data.socket?.url) {
+        fallback();
+        return stop;
+    }
+    status(online() ? 'Conectando tiempo real…' : 'Sin conexión', false);
+    try {
+        const endpoint = new URL(data.socket.url);
+        echo = new Echo({
+            broadcaster: 'reverb',
+            client: new Pusher(data.socket.key, {
+                cluster: 'mt1',
+                wsHost: endpoint.hostname,
+                wsPort: Number(endpoint.port || (endpoint.protocol === 'https:' ? 443 : 80)),
+                wssPort: Number(endpoint.port || 443),
+                forceTLS: endpoint.protocol === 'https:',
+                enabledTransports: ['ws', 'wss'],
+                disableStats: true,
+                channelAuthorization: { endpoint: '/broadcasting/auth', transport: 'ajax', headers: { 'X-CSRF-TOKEN': data.csrf } },
+            }),
+        });
+        const connection = echo.connector.pusher.connection;
+        for (const channel of channels) {
+            echo.private(channel)
+                .listen('.pedido.actualizado', sync)
+                .subscribed(() => {
+                    if (stopped) return;
+                    subscribed.add(channel);
+                    if (ready()) status('Tiempo real conectado', true);
+                    sync();
+                })
+                .error(() => {
+                    subscribed.delete(channel);
+                    fallback();
+                });
+        }
+        connection.bind('state_change', ({ current }) => {
+            if (stopped || current === 'connected') return;
+            subscribed.clear();
+            fallback();
+        });
+    } catch {
+        echo?.disconnect();
+        fallback();
+    }
+    return stop;
 }

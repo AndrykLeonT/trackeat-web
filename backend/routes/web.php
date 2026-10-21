@@ -22,6 +22,10 @@ Route::get('/comandas', function () {
     return Inertia::render('public/comandas');
 })->name('comandas');
 
+Route::get('/comandas/desglose', function () {
+    return Inertia::render('public/desglose-comandas');
+})->name('comandas.desglose');
+
 // Keep the trailing slash: the static shell uses relative asset URLs.
 Route::get('/menu', fn () => new RedirectResponse('/menu/'))->name('menu');
 
