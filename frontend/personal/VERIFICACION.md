@@ -1,5 +1,14 @@
 # Verificación de la Práctica 4
 
+**Reverificación del 20 de octubre de 2026:** el recorrido de entrega se repitió
+con Chrome y perfiles temporales: creación nueva v2, recarga offline, alta con
+Blob, búsqueda, demostración de conservación v1 → v2, edición y baja confirmada.
+Sin errores JavaScript. El informe conjunto está en
+[verificacion-entrega.md](../../docs/verificacion-entrega.md).
+
+La matriz siguiente conserva como antecedente la verificación más extensa del
+13 de octubre; no representa una nueva ejecución de todos esos casos.
+
 Ejecutada el **13 de octubre de 2026**, con Chrome real, perfiles temporales,
 Playwright y la red desactivada mediante el contexto del navegador. Los datos
 de prueba no se cargan automáticamente en el catálogo del usuario.

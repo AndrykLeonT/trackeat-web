@@ -40,8 +40,9 @@
             items: [
                 {
                     name: 'Menú Digital',
-                    href: '/menu',
+                    href: '/menu/',
                     icon: Utensils,
+                    offlineCatalog: true,
                 },
                 {
                     name: 'Recetas',

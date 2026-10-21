@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\PedidoActualizado;
 use App\Models\Categoria;
 use App\Models\Corte;
 use App\Models\HistorialEstado;
@@ -32,12 +33,21 @@ class PedidoService
             'items.*.id_producto' => ['required', 'integer'],
             'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:10000'],
             'items.*.notas' => ['nullable', 'string', 'max:1000'],
+            'client_request_id' => ['nullable', 'uuid'],
         ])->validate();
         if ($actor->fresh()->rol === 'cliente' && (int) $data['id_usuario'] !== $actor->id) {
             throw new AuthorizationException('Solo puede ordenar para su propia cuenta.');
         }
 
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data, $actor) {
+            if (! empty($data['client_request_id'])) {
+                // Serialize retries of the same request, including simultaneous HTTP requests.
+                DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [$actor->id.':'.$data['client_request_id']]);
+                $existing = Pedido::where('id_usuario', $data['id_usuario'])->where('client_request_id', $data['client_request_id'])->first();
+                if ($existing) {
+                    return $existing->load('items', 'estaciones');
+                }
+            }
             $client = User::whereKey($data['id_usuario'])->where('rol', 'cliente')->where('eliminado', false)->sharedLock()->first();
             if (! $client) {
                 $this->invalid('id_usuario', 'Se requiere un cliente registrado y activo.');
@@ -59,13 +69,17 @@ class PedidoService
             }
             Money::parse($total, 'total');
             $pedido = Pedido::create(['id_usuario' => $client->id, 'numero_pedido' => 'TE-'.Str::ulid(),
-                'tipo_entrega' => $data['tipo_entrega'], 'num_mesa' => $data['num_mesa'] ?? null, 'total' => $total]);
+                'tipo_entrega' => $data['tipo_entrega'], 'num_mesa' => $data['num_mesa'] ?? null, 'total' => $total,
+                'client_request_id' => $data['client_request_id'] ?? null, 'demo_room' => $actor->demo_room]);
             $pedido->items()->createMany($lines);
             foreach (array_unique(array_column($lines, 'estacion')) as $station) {
                 $pedido->estaciones()->create(['estacion' => $station]);
             }
 
-            return $pedido->refresh()->load('items', 'estaciones');
+            $pedido->refresh()->load('items', 'estaciones');
+            event(PedidoActualizado::forOrder($pedido));
+
+            return $pedido;
         }, 3);
     }
 
@@ -92,6 +106,7 @@ class PedidoService
             $states = $pedido->estaciones()->pluck('estado')->all();
             $pedido->estado = self::FLOW[min(array_map(fn ($state) => array_search($state, self::FLOW, true), $states))];
             $pedido->save();
+            event(PedidoActualizado::forOrder($pedido));
 
             return $pedido->load('estaciones', 'historial');
         }, 3);
@@ -119,6 +134,7 @@ class PedidoService
                 $this->transition($actor, $station, 'cancelado');
             }
             $pedido->update(['estado' => 'cancelado']);
+            event(PedidoActualizado::forOrder($pedido));
 
             return $pedido->load('estaciones', 'historial');
         }, 3);

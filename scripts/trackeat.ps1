@@ -165,6 +165,8 @@ try {
         try {
             & $node.Source $vite build --config vite.personal.config.js
             if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el catalogo de personal.' }
+            & $node.Source $vite build --config vite.menu.config.js
+            if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el menu sin conexion.' }
         } finally { Pop-Location }
         $BackendPort = Free-Port $BackendPort
         if ($FrontendPort -eq $BackendPort) { $FrontendPort++ }

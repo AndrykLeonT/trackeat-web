@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pedido extends DomainModel
 {
-    protected $fillable = ['id_usuario', 'numero_pedido', 'estado', 'tipo_entrega', 'num_mesa', 'total', 'eliminado'];
+    protected $fillable = ['id_usuario', 'numero_pedido', 'estado', 'tipo_entrega', 'num_mesa', 'total', 'eliminado', 'client_request_id', 'demo_room'];
 
     protected $table = 'pedidos';
 

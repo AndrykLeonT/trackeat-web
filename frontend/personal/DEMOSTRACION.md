@@ -50,6 +50,17 @@
 
 ## Correspondencia con el documento
 
+Para una **versión 3**, abrir la base con versión 3 y añadir un bloque
+`if (event.oldVersion < 3)` dentro de `onupgradeneeded`. Crear únicamente los
+campos, índices o almacenes nuevos y transformar registros con el cursor de
+esa transacción, conservando claves y Blobs. No borrar la base para migrar.
+Una instalación nueva ejecutaría v1, v2 y v3; una base v1 ejecutaría v2 y v3;
+una base v2 ejecutaría sólo v3. Las otras pestañas deben cerrar su conexión
+en `onversionchange`, como ya hace el módulo.
+
+El guion conjunto de la entrega, con cuatro minutos para esta práctica, está
+en [Avance 2](../../docs/avance-2.md).
+
 | Requisito                                     | Implementación / evidencia                                   |
 | --------------------------------------------- | ------------------------------------------------------------ |
 | Siete campos, foto y fecha; esquema previo    | `LEEME.md`; siete campos v1 más clave y dos campos v2        |

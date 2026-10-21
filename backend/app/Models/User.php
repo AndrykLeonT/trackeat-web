@@ -52,6 +52,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'eliminado' => 'boolean',
+            'demo_expires_at' => 'datetime',
         ];
     }
 

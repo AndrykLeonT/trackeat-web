@@ -2,10 +2,13 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build && vite build --config vite.personal.config.js",
+        "verify:entrega": "node tests/entrega.mjs",
+        "verify:carga": "node tests/carga.mjs",
+        "build": "vite build && vite build --config vite.personal.config.js && vite build --config vite.menu.config.js",
+        "build:menu": "vite build --config vite.menu.config.js",
         "build:personal": "vite build --config vite.personal.config.js",
         "preview:personal": "vite preview --config vite.personal.config.js --host 127.0.0.1",
-        "build:ssr": "vite build && vite build --config vite.personal.config.js && vite build --ssr",
+        "build:ssr": "pnpm build && vite build --ssr",
         "dev": "vite",
         "format": "prettier --write src/",
         "format:check": "prettier --check src/",
@@ -18,9 +21,11 @@
         "eslint-config-prettier": "^10.0.1",
         "eslint-plugin-svelte": "^3.23.0",
         "globals": "^15.14.0",
+        "playwright": "^1.64.1",
         "prettier": "3.6.2",
         "prettier-plugin-svelte": "^4.1.1",
-        "prettier-plugin-tailwindcss": "^0.6.11"
+        "prettier-plugin-tailwindcss": "^0.6.11",
+        "ws": "^8.22.0"
     },
     "dependencies": {
         "@inertiajs/svelte": "^2.0.0",
@@ -29,7 +34,9 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "concurrently": "^9.0.1",
+        "laravel-echo": "^2.6.1",
         "laravel-vite-plugin": "^1.0",
+        "pusher-js": "^8.6.0",
         "svelte": "^5.57.1",
         "tailwind-merge": "^3.0.1",
         "tailwindcss": "^4.0.0",

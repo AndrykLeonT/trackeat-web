@@ -49,7 +49,8 @@
     <div class="flex items-center gap-3">
         <!-- Indicador de Cocina en Línea / Servicio Activo (en pantallas >= sm) -->
         <div
-            class="hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border shadow-xs {connected
+            role="status"
+            class="inline-flex max-w-[170px] items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium border shadow-xs {connected
                 ? 'bg-chart-2/10 text-chart-2 border-chart-2/30'
                 : 'bg-muted text-muted-foreground border-border'}"
         >

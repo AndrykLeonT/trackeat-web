@@ -1,48 +1,41 @@
 # Práctica 4 · Catálogo de personal de TrackEat
 
-**Esquema definido antes de implementar.** Base `trackeat-personal`, almacén
-`personal`, clave `id` numérica autoincremental. Versión 1: `nombre` (texto),
-`email` (texto), `telefono` (texto), `area` (Cocina, Servicio, Caja o
-Administración), `puesto` (texto), `fechaIngreso` (fecha ISO `AAAA-MM-DD`) y
-`foto` (Blob de imagen PNG, JPEG o WebP, máximo 5 MiB). Son siete campos además
-de la clave; fecha y fotografía son obligatorias. Versión 2 añade `turno`
-(Matutino, Vespertino o Mixto, Matutino para registros antiguos) y
-`nombreBusqueda` (nombre normalizado sin acentos y en minúsculas). Un almacén
-`metadatos` guarda la fecha y el número de registros migrados.
+**Esquema.** Base IndexedDB `trackeat-personal`, almacén `personal`, clave `id`
+numérica autoincremental. Versión 1: `nombre`, `email`, `telefono`, `area`
+(Cocina, Servicio, Caja o Administración), `puesto`, `fechaIngreso` (ISO) y
+`foto` (Blob PNG/JPEG/WebP de hasta 5 MiB). Fecha y fotografía son obligatorias.
+La versión 2 agrega `turno` (Matutino, Vespertino o Mixto) y `nombreBusqueda`
+(normalizado sin acentos y en minúsculas). `metadatos` registra fecha y cantidad
+migrada. El esquema está definido en `db.js`.
 
-**Índices y migración.** `porArea` indexa `area` para consultar una estación.
-En v2, `porNombre` indexa `nombreBusqueda`: el nombre se consulta frecuentemente
-y permite buscar por prefijo sin recorrer todo el almacén; «angel» encuentra
-«Angélica». `onupgradeneeded` aplica la migración en una transacción, conservando
-claves, campos y fotografías. La demostración integrada copia un registro real
-a una base temporal v1, la migra a v2 y compara campos, clave, cantidad y cada
-byte de la foto; también consulta el nuevo índice. No altera la base principal.
+**Índices y migración.** `porArea` consulta una estación; `porNombre` permite
+buscar prefijos frecuentes mediante `.index('porNombre')` e `IDBKeyRange`, sin
+leer todo el almacén: «angel» encuentra «Angélica». `onupgradeneeded` aplica las
+versiones dentro de una transacción y conserva claves, campos y Blobs. En una
+instalación nueva ejecuta v1 y v2; desde v1 sólo aplica v2 y asigna turno Matutino.
+La demostración integrada migra una copia temporal de un registro real y
+compara clave, campos, todos los bytes de la foto y la consulta por índice.
+No modifica la base principal. Una v3 añadiría un bloque `oldVersion < 3`,
+sin borrar registros ni repetir cambios ya aplicados.
 
-**Caché y funcionamiento sin conexión.** El build genera un service worker con
-HTML, JavaScript, CSS y logotipo locales. Se eligió cache-first porque este
-catálogo no requiere consultas al servidor; una revisión del build renueva la
-caché. El ámbito se limita al módulo. El aviso de disponibilidad comprueba
-recursos y control de la página. Después de una primera visita con conexión se
-puede abrir, listar, buscar, crear, editar y eliminar sin red. Las fotos son
-binarios de IndexedDB mostrados mediante URLs temporales. Toda la carpeta
-compilada es portable a otra ruta en localhost o HTTPS; los datos pertenecen
-al origen y perfil del navegador, no se transfieren a otro dominio o puerto.
+**Caché.** El service worker precarga HTML, JavaScript, CSS y logotipo locales.
+Se eligió cache-first: este módulo no consulta el servidor. Una revisión por
+contenido renueva recursos; su ámbito `/personal/` no afecta al menú del
+proyecto. Tras una primera visita con red permite recargar, consultar, buscar,
+crear, editar y eliminar offline. Las fotos se leen de IndexedDB con URLs
+temporales; no dependen del archivo original. Los datos pertenecen al origen
+y perfil del navegador, no viajan con la carpeta ni entre dominios.
 
 **Gráfico y accesibilidad.** «¿Cómo se distribuye el personal por área?» se
-responde con barras SVG calculadas desde todos los registros de IndexedDB y
-actualizadas tras cada operación. Hay tabla alternativa, formularios etiquetados,
-marcado semántico, foco visible, mensajes anunciados y diálogos nativos;
-la baja exige confirmación y permite cancelar con Escape.
-La identidad visual y el menú se reutilizan desde `AppLayout`, `Sidebar`,
-`Header`, `Footer` y los estilos compartidos de TrackEat.
+responde con barras SVG calculadas desde todos los registros y actualizadas
+con cada operación. Incluye tabla alternativa, formularios etiquetados,
+foco visible, mensajes anunciados y baja con confirmación cancelable mediante
+Escape. Comparte diseño y navegación con TrackEat.
 
-**Ejecución y entrega.** Desde `frontend`: `pnpm build`; abrir
-`http://localhost:8000/personal/` con Laravel iniciado, o `pnpm preview:personal`
-para usar el catálogo por separado. La carpeta fuente es `frontend/personal/`;
-la salida portable es `backend/public/personal/`. El guion de demostración y
-la matriz de requisitos están en `DEMOSTRACION.md`.
+**Ejecución.** `pnpm build` desde `frontend`; abrir `/personal/` con Laravel,
+o `pnpm preview:personal` sin PHP. Fuentes en `frontend/personal/`; salida
+portable en `backend/public/personal/`. Ver `DEMOSTRACION.md` y `VERIFICACION.md`.
 
-**Uso de IA.** OpenAI Codex asistió en el esquema, IndexedDB, migración, interfaz
-Svelte, gráfico, service worker, compilación, documentación y verificaciones.
-El equipo debe revisar, explicar y depurar el código, registrar sus aportaciones
-en Git y presentar la demostración.
+**Uso de IA.** OpenAI Codex asistió en esquema, migración, interfaz, gráfico,
+service worker, documentación y pruebas. El equipo revisa, explica y depura el
+código y registra sus aportaciones reales en Git.

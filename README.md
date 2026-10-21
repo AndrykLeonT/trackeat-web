@@ -192,6 +192,20 @@ Consultar el [LEEME de la práctica](frontend/personal/LEEME.md) para el esquema
 para verificar todos los requisitos con la red desactivada.
 Los resultados de las comprobaciones están en [VERIFICACION.md](frontend/personal/VERIFICACION.md).
 
+## Avance 2: menú offline y pedidos en tiempo real
+
+El Menú Digital (`/menu/`) consulta PostgreSQL, guarda el catálogo y el carrito
+en IndexedDB y permite recargar sin conexión. Los pedidos se confirman en el
+servidor; Comandas permite avanzar cada estación y Dashboard muestra un gráfico
+real por estado. Laravel Reverb distribuye los cambios mediante canales privados.
+
+Para presentar en Windows: iniciar la base local, instalar `cloudflared` y
+ejecutar **`presentar.bat`**. Si 8080 está ocupado, usar `presentar.bat -SocketPort 8081`.
+El arranque imprime el sitio, el socket y el enlace temporal para el salón.
+
+Ver [preparación, pruebas y guion de diez minutos](docs/avance-2.md) y
+[diseño de PostgreSQL e IndexedDB](docs/esquema.md).
+
 ## 9. Equipo
 
 | Integrante | No. de control | Rol |

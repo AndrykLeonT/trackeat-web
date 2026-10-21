@@ -1,39 +1,61 @@
 <script>
+    import { onMount } from 'svelte';
     import AppLayout from '@/layouts/AppLayout.svelte';
     import PageTitle from '@/components/page-title.svelte';
-
-    let { title = 'Dashboard', description = 'Visión general de pedidos y estado de cocina.' } = $props();
+    import OrderChart from '@/components/OrderChart.svelte';
+    import { api, session, connectLive } from '@/lib/trackeat';
+    let { title = 'Dashboard', description = 'Pedidos y estado de cocina en tiempo real.' } = $props();
+    let board = $state({ estados: {}, pedidos: [] });
+    let error = $state('');
+    let loaded = $state(false);
+    let connected = $state(false);
+    let connectionLabel = $state('Conectando…');
+    onMount(() => {
+        let stop = () => {};
+        let disposed = false;
+        async function refresh() {
+            try {
+                board = await api('tablero');
+                loaded = true;
+                error = '';
+            } catch (e) {
+                error = e.message;
+            }
+        }
+        session()
+            .then(async (data) => {
+                if (disposed) return;
+                if (!data.user) {
+                    error = 'Inicia sesión como personal para consultar el panel.';
+                    return;
+                }
+                stop = connectLive(data, refresh, (label, value) => {
+                    connectionLabel = label;
+                    connected = value;
+                });
+                await refresh();
+            })
+            .catch((e) => {
+                error = e.message;
+            });
+        return () => {
+            disposed = true;
+            stop();
+        };
+    });
 </script>
 
 <PageTitle title="{title} — TrackEat" />
-
-<AppLayout>
+<AppLayout {connected} {connectionLabel} headerTitle={title}>
     <div class="space-y-6">
-        <!-- Encabezado del Módulo -->
-        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
-            <div>
-                <h1 class="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-                <p class="mt-1 text-sm text-muted-foreground">{description}</p>
-            </div>
-            <div class="flex items-center gap-2 mt-2 sm:mt-0">
-                <span
-                    class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary border border-primary/20"
-                >
-                    <span class="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
-                    Módulo Activo
-                </span>
-            </div>
+        <div class="border-b border-border pb-5">
+            <h1 class="text-2xl font-bold">{title}</h1>
+            <p class="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
-
-        <!-- Tarjeta de Contenido / Próximo diseño -->
-        <div class="rounded-2xl border border-dashed border-border bg-card p-10 text-center shadow-xs">
-            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-8 ring-primary/10 mb-4">
-                <span class="text-2xl font-bold">✨</span>
-            </div>
-            <h2 class="text-lg font-semibold text-card-foreground mb-1">Módulo de {title}</h2>
-            <p class="mx-auto max-w-md text-sm text-muted-foreground leading-relaxed">
-                Este módulo está integrado en la barra lateral de navegación y listo para que implementes la vista y componentes específicos.
-            </p>
-        </div>
+        {#if error}<p role="alert" class="text-sm text-destructive">
+                {error} <a href="/login" class="underline">Iniciar sesión</a>
+            </p>{:else if loaded}<OrderChart totals={board.estados} />{:else}<p role="status" class="text-sm text-muted-foreground">
+                Cargando pedidos…
+            </p>{/if}
     </div>
 </AppLayout>
