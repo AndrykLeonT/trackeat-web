@@ -1,8 +1,0 @@
-# Lo genera scripts/balanceo.ps1 en cada computadora; db.json guarda contraseñas.
-/estado.json
-/db.json
-/logs/
-/temp/
-/php/
-/conf/balanceo.conf
-/conf/mime.types

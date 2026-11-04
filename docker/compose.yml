@@ -1,0 +1,107 @@
+# Práctica 5: balanceador Nginx, dos nodos de TrackEat, Reverb, cola y una sola base PostgreSQL,
+# cada uno con su propia IP en la red trackeat-red.
+#   docker compose -f docker/compose.yml up -d --build
+#   docker compose -f docker/compose.yml exec nodo1 php artisan migrate --seed --force   (la primera vez)
+# La APP_KEY sale de backend/.env; lo demás se fija aquí para que todos los nodos compartan base y sesión.
+name: trackeat
+
+x-app: &app
+  image: trackeat-app
+  env_file: ../backend/.env
+  environment: &app-env
+    APP_URL: http://127.0.0.1:8080
+    LOG_CHANNEL: stderr
+    DB_CONNECTION: pgsql
+    DB_HOST: 172.28.0.20
+    DB_PORT: "5432"
+    DB_DATABASE: trackeat
+    DB_USERNAME: trackeat
+    DB_PASSWORD: trackeat
+    PGCONNECT_TIMEOUT: "1"
+    SESSION_DRIVER: database
+    CACHE_STORE: database
+    QUEUE_CONNECTION: database
+    BROADCAST_CONNECTION: reverb
+    REVERB_APP_ID: trackeat
+    REVERB_APP_KEY: trackeat-balanceo
+    REVERB_APP_SECRET: trackeat-balanceo-secreto
+    REVERB_HOST: reverb
+    REVERB_PORT: "8081"
+    REVERB_SCHEME: http
+    REVERB_ALLOWED_ORIGINS: "*"
+    TRACKEAT_SOCKET_URL: http://127.0.0.1:8080
+    TRUSTED_PROXIES: 172.28.0.10
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: trackeat-db-docker
+    environment:
+      POSTGRES_DB: trackeat
+      POSTGRES_USER: trackeat
+      POSTGRES_PASSWORD: trackeat
+    volumes:
+      - trackeat-docker-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trackeat -d trackeat"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      trackeat-red: { ipv4_address: 172.28.0.20 }
+
+  nodo1:
+    <<: *app
+    build: { context: .., dockerfile: docker/Dockerfile }
+    container_name: trackeat-nodo1
+    environment: { <<: *app-env, NODO: "1" }
+    ports: ["8001:8000"]
+    networks:
+      trackeat-red: { ipv4_address: 172.28.0.11 }
+
+  nodo2:
+    <<: *app
+    container_name: trackeat-nodo2
+    environment: { <<: *app-env, NODO: "2" }
+    networks:
+      trackeat-red: { ipv4_address: 172.28.0.12 }
+
+  reverb:
+    <<: *app
+    container_name: trackeat-reverb
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8081"]
+    restart: unless-stopped
+    networks:
+      trackeat-red: { ipv4_address: 172.28.0.30 }
+
+  cola:
+    <<: *app
+    container_name: trackeat-cola
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3"]
+    restart: unless-stopped
+    networks:
+      trackeat-red: { ipv4_address: 172.28.0.31 }
+
+  balanceador:
+    image: nginx:1.27-alpine
+    container_name: trackeat-balanceador
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports: ["8080:80"]
+    depends_on: [nodo1, nodo2, reverb]
+    networks:
+      trackeat-red: { ipv4_address: 172.28.0.10 }
+
+networks:
+  trackeat-red:
+    name: trackeat-red
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+volumes:
+  trackeat-docker-db:
+    name: trackeat-docker-db
