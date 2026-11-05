@@ -1,0 +1,62 @@
+# Balanceador de la Práctica 5. Para cambiar de algoritmo, cambia la línea marcada y reinicia el balanceador
+# (este archivo es una plantilla: la imagen la convierte en configuración al arrancar, así que `nginx -s reload` no basta):
+#   docker compose -f docker/compose.yml restart balanceador
+# Las direcciones de los nodos y de los Reverb llegan por variables (docker/.env), no se editan aquí.
+# "resolve" hace que Nginx vuelva a consultar el DNS de Docker: si un contenedor se recrea con otra IP,
+# o aún no existe cuando Nginx arranca, el balanceador lo encuentra sin reiniciarse.
+resolver 127.0.0.11 valid=5s ipv6=off;
+
+upstream trackeat {
+    zone trackeat 64k;
+    least_conn;        # ip_hash;  o bórrala para turno rotatorio
+    server ${NODO1_ADDR} resolve max_fails=2 fail_timeout=10s;
+    server ${NODO2_ADDR} resolve max_fails=2 fail_timeout=10s;
+}
+
+# Un Reverb por nodo; entre ellos se sincronizan con Redis, así que una pantalla puede conectarse a cualquiera.
+upstream reverb {
+    zone reverb 64k;
+    least_conn;
+    server ${REVERB1_ADDR} resolve max_fails=2 fail_timeout=10s;
+    server ${REVERB2_ADDR} resolve max_fails=2 fail_timeout=10s;
+}
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+
+    # El navegador pide el icono en cada recarga y se come un turno.
+    location = /favicon.ico { return 204; }
+
+    # WebSockets de Reverb (pantalla de cocina). Si un Reverb cae, el cliente se reconecta y Nginx lo manda al otro.
+    location /app {
+        proxy_pass http://reverb;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $http_host;
+        proxy_next_upstream error timeout;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 3600s;
+    }
+
+    location / {
+        proxy_pass http://trackeat;
+
+        proxy_set_header Host              $http_host;   # con el puerto
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_next_upstream error timeout http_502 http_503 http_504;
+        # Si un nodo se apaga, su IP deja de contestar; sin esto Nginx espera 60 s antes de probar el otro.
+        proxy_connect_timeout 2s;
+
+        # Para comprobar el reparto: en F12 > Red se ve qué nodo atendió.
+        add_header X-Nodo $upstream_addr always;
+    }
+}

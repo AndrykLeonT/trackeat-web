@@ -1,4 +1,4 @@
-# Imagen de TrackEat para la Práctica 5 en una sola PC: la usan nodo1, nodo2, reverb y cola.
+# Imagen de TrackEat para la Práctica 5: la usan la app, Reverb y la cola de cada nodo.
 # El frontend se compila antes en Windows (pnpm build) y llega ya hecho en backend/public.
 FROM php:8.3-cli-alpine
 

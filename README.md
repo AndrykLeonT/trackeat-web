@@ -206,6 +206,8 @@ El arranque imprime el sitio, el socket y el enlace temporal para el salón.
 Ver [preparación, pruebas y guion de diez minutos](docs/avance-2.md) y
 [diseño de PostgreSQL e IndexedDB](docs/esquema.md).
 
+La Práctica 5 (balanceo con dos nodos, Reverb por nodo y Redis) se levanta con Docker, en una sola PC o repartida en tres: ver el [informe de la práctica](docs/informe-practica-5.md) y [balanceo y despliegue](docs/balanceo.md#despliegue).
+
 ## 9. Equipo
 
 | Integrante | No. de control | Rol |

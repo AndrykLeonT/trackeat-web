@@ -1,0 +1,88 @@
+# Práctica 5 · Nodos de aplicación. Cada nodo es un paquete de tres contenedores:
+#   nodoN   la app (artisan serve)         reverbN  su servidor WebSocket          colaN  su worker de la cola
+# Los dos paquetes están en este archivo; en cada PC se levanta el que le toca (por nombre de servicio):
+#
+#   PC del nodo 1:  docker compose --env-file docker/.env -f docker/nodo/compose.yml up -d --build nodo1 reverb1 cola1
+#   PC del nodo 2:  docker compose --env-file docker/.env -f docker/nodo/compose.yml up -d --build nodo2 reverb2 cola2
+#   Una PC:         docker compose -f docker/compose.yml up -d --build     (incluye también la infraestructura)
+#
+# La base, Redis y el balanceador están en docker/infra/compose.yml. APP_KEY sale de backend/.env y debe ser
+# la MISMA en todas las PCs (copiar ese archivo): con otra clave, un nodo no puede leer la sesión del otro.
+name: trackeat-nodo
+
+x-app: &app
+  image: trackeat-app
+  # Todos los servicios comparten la misma imagen; con el build aquí, ninguno intenta descargarla de internet.
+  build: { context: ../.., dockerfile: docker/Dockerfile }
+  env_file: ../../backend/.env
+  restart: unless-stopped
+  environment: &app-env
+    APP_URL: ${URL_PUBLICA:-http://127.0.0.1:8080}
+    LOG_CHANNEL: stderr
+    DB_CONNECTION: pgsql
+    DB_HOST: ${DB_HOST:-db}
+    DB_PORT: ${DB_PORT:-5432}
+    DB_DATABASE: trackeat
+    DB_USERNAME: trackeat
+    DB_PASSWORD: ${DB_PASSWORD:-trackeat}
+    PGCONNECT_TIMEOUT: "1"
+    SESSION_DRIVER: database
+    CACHE_STORE: database
+    QUEUE_CONNECTION: database
+    BROADCAST_CONNECTION: reverb
+    REVERB_APP_ID: trackeat
+    REVERB_APP_KEY: trackeat-balanceo
+    REVERB_APP_SECRET: trackeat-balanceo-secreto
+    REVERB_PORT: "8081"
+    REVERB_SCHEME: http
+    REVERB_ALLOWED_ORIGINS: "*"
+    # Con varios Reverb, Redis reparte cada evento a todos ellos.
+    REVERB_SCALING_ENABLED: "true"
+    REDIS_HOST: ${REDIS_HOST:-redis}
+    REDIS_PORT: ${REDIS_PORT:-6379}
+    REDIS_PASSWORD: ${REDIS_PASSWORD:-trackeat-redis}
+    TRACKEAT_SOCKET_URL: ${URL_PUBLICA:-http://127.0.0.1:8080}
+    # Dirección del balanceador, o "*" para aceptar cualquier proxy directo.
+    TRUSTED_PROXIES: ${TRUSTED_PROXIES:-*}
+
+services:
+  # ---------- Nodo 1 ----------
+  nodo1:
+    <<: *app
+    container_name: trackeat-nodo1
+    # La app publica sus eventos en el Reverb de su propio nodo.
+    environment: { <<: *app-env, NODO: "1", REVERB_HOST: reverb1 }
+    ports: ["${ESCUCHA:-127.0.0.1}:8001:8000"]
+
+  reverb1:
+    <<: *app
+    container_name: trackeat-reverb1
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8081"]
+    environment: { <<: *app-env, NODO: "1", REVERB_HOST: reverb1 }
+    ports: ["${ESCUCHA:-127.0.0.1}:8091:8081"]
+
+  cola1:
+    <<: *app
+    container_name: trackeat-cola1
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3"]
+    environment: { <<: *app-env, NODO: "1", REVERB_HOST: reverb1 }
+
+  # ---------- Nodo 2 ----------
+  nodo2:
+    <<: *app
+    container_name: trackeat-nodo2
+    environment: { <<: *app-env, NODO: "2", REVERB_HOST: reverb2 }
+    ports: ["${ESCUCHA:-127.0.0.1}:8002:8000"]
+
+  reverb2:
+    <<: *app
+    container_name: trackeat-reverb2
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8081"]
+    environment: { <<: *app-env, NODO: "2", REVERB_HOST: reverb2 }
+    ports: ["${ESCUCHA:-127.0.0.1}:8092:8081"]
+
+  cola2:
+    <<: *app
+    container_name: trackeat-cola2
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3"]
+    environment: { <<: *app-env, NODO: "2", REVERB_HOST: reverb2 }
