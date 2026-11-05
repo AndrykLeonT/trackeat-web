@@ -88,7 +88,7 @@ docker network inspect trackeat_default --format '{{range .Containers}}{{.Name}}
 {"nodo":"1","bd":"caida"}                         → 503
 ```
 
-Al volver a encender la base, `/salud` regresa a 200 sin reiniciar el nodo. El campo `ip_cliente` muestra `172.18.0.1` porque Docker Desktop en Windows hace NAT y todas las conexiones desde el anfitrión llegan con la IP de la puerta de enlace; desde otra computadora mostraría la IP real del cliente.
+Al volver a encender la base, `/salud` regresa a 200 sin reiniciar el nodo. El campo `ip_cliente` muestra `172.18.0.1` porque Docker Desktop en Windows hace NAT y todas las conexiones desde el anfitrión llegan con la IP de la puerta de enlace; desde otra computadora debería mostrar la IP real del cliente, aunque no se ha comprobado.
 
 **Prueba de sesión.** Se inició sesión como cocinero **a través del balanceador** y se usó la misma cookie directamente contra cada nodo:
 
