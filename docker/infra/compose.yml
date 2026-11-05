@@ -1,0 +1,60 @@
+# Práctica 5 · Infraestructura compartida: PostgreSQL, Redis y el balanceador Nginx.
+# Va en una sola PC (la "PC de infraestructura"). Los nodos de la app viven en docker/nodo/compose.yml.
+#
+#   Tres PCs:  docker compose --env-file docker/.env -f docker/infra/compose.yml up -d
+#   Una PC:    docker compose -f docker/compose.yml up -d        (incluye este archivo y el de los nodos)
+#
+# Lo que cambia entre una PC y tres PCs son las variables de docker/.env (ver docker/.env.example).
+name: trackeat-infra
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: trackeat-db-docker
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: trackeat
+      POSTGRES_USER: trackeat
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-trackeat}
+    volumes:
+      - trackeat-docker-db:/var/lib/postgresql/data
+    # Se publica para que los nodos de otras PCs lleguen a la base. Por omisión solo en esta PC.
+    ports: ["${ESCUCHA:-127.0.0.1}:${DB_PUERTO_PUBLICADO:-5433}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trackeat -d trackeat"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Canal compartido de Reverb: lo que publica un Reverb llega a los clientes de todos los demás.
+  redis:
+    image: redis:7-alpine
+    container_name: trackeat-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-trackeat-redis}", "--save", "", "--appendonly", "no"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-trackeat-redis}
+    ports: ["${ESCUCHA:-127.0.0.1}:${REDIS_PUERTO_PUBLICADO:-6380}:6379"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping 2>/dev/null | grep -q PONG"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  balanceador:
+    image: nginx:1.27-alpine
+    container_name: trackeat-balanceador
+    restart: unless-stopped
+    # La imagen sustituye estas variables en la plantilla y escribe /etc/nginx/conf.d/default.conf.
+    environment:
+      NODO1_ADDR: ${NODO1_ADDR:-nodo1:8000}
+      NODO2_ADDR: ${NODO2_ADDR:-nodo2:8000}
+      REVERB1_ADDR: ${REVERB1_ADDR:-reverb1:8081}
+      REVERB2_ADDR: ${REVERB2_ADDR:-reverb2:8081}
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    ports: ["8080:80"]
+
+volumes:
+  trackeat-docker-db:
+    name: trackeat-docker-db

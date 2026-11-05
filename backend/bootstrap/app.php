@@ -21,10 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         // TLS terminates at cloudflared; local servers listen only on loopback.
         // Behind the Nginx balancer on another PC, TRUSTED_PROXIES holds its IP.
-        $middleware->trustProxies(at: array_values(array_filter(array_map(
-            'trim',
-            explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1'))
-        ))));
+        // '*' confía en cualquier proxy directo (el nodo solo es alcanzable por el balanceador).
+        $proxies = trim((string) env('TRUSTED_PROXIES', '127.0.0.1,::1'));
+        $middleware->trustProxies(at: in_array($proxies, ['*', '**'], true)
+            ? $proxies
+            : array_values(array_filter(array_map('trim', explode(',', $proxies)))));
         $middleware->append(IdentificarNodo::class);
         $middleware->web(append: [
             HandleInertiaRequests::class,
