@@ -59,3 +59,4 @@ Route::get('/metricas', function () {
 })->name('metricas');
 
 require __DIR__.'/auth.php';
+require __DIR__.'/caja.php';
