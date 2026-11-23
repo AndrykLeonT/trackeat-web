@@ -10,7 +10,8 @@
     import ExternalLink from '@lucide/svelte/icons/external-link';
     import Users from '@lucide/svelte/icons/users';
 
-    let { onNavigate = null, nativeNavigation = false, currentUrl = null } = $props();
+    let { onNavigate = null, nativeNavigation = false, currentUrl = null, userRole = null } = $props();
+    const role = $derived(userRole ?? $page?.props?.auth?.user?.rol);
 
     // Secciones organizadas de los módulos de TrackEat
     const navigationSections = [
@@ -85,6 +86,9 @@
     aria-label="Módulos de TrackEat"
     class="flex h-full flex-col justify-between p-4 bg-sidebar text-sidebar-foreground selection:bg-sidebar-accent select-none"
 >
+    {#if role === 'administrador'}<div class="flex flex-wrap gap-3 px-2 pb-3 text-sm font-semibold">
+            <a href="/admin/productos">Administrar productos</a><a href="/admin/categorias">Administrar categorías</a>
+        </div>{/if}
     <!-- Parte superior: Logo y Navegación -->
     <div class="flex flex-1 flex-col overflow-y-auto pr-1 -mr-1">
         <!-- Encabezado con Logo grande -->
@@ -117,12 +121,7 @@
                             }`}
                             <li>
                                 {#if nativeNavigation || item.offlineCatalog}
-                                    <a
-                                        href={nativeNavigation && item.offlineCatalog ? './' : item.href}
-                                        onclick={handleNavClick}
-                                        aria-current={active ? 'page' : undefined}
-                                        class={navClass}
-                                    >
+                                    <a href={item.href} onclick={handleNavClick} aria-current={active ? 'page' : undefined} class={navClass}>
                                         {@render navContent(item, active)}
                                     </a>
                                 {:else}

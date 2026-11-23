@@ -1,0 +1,75 @@
+{
+  "origin": "https://parcel-questions-forestry-laptops.trycloudflare.com",
+  "observations": [
+    {
+      "path": "/menu/",
+      "status": 200,
+      "headers": {
+        "strict-transport-security": null,
+        "x-content-type-options": null,
+        "x-frame-options": null,
+        "referrer-policy": null,
+        "permissions-policy": null,
+        "content-security-policy": null
+      },
+      "cookies": []
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "headers": {
+        "strict-transport-security": null,
+        "x-content-type-options": null,
+        "x-frame-options": null,
+        "referrer-policy": null,
+        "permissions-policy": null,
+        "content-security-policy": null
+      },
+      "cookies": [
+        {
+          "name": "XSRF-TOKEN",
+          "httpOnly": false,
+          "secure": true,
+          "sameSite": "lax"
+        },
+        {
+          "name": "trackeat_session",
+          "httpOnly": true,
+          "secure": true,
+          "sameSite": "lax"
+        }
+      ]
+    },
+    {
+      "path": "/api/sesion",
+      "status": 200,
+      "headers": {
+        "strict-transport-security": null,
+        "x-content-type-options": null,
+        "x-frame-options": null,
+        "referrer-policy": null,
+        "permissions-policy": null,
+        "content-security-policy": null
+      },
+      "cookies": [
+        {
+          "name": "XSRF-TOKEN",
+          "httpOnly": false,
+          "secure": true,
+          "sameSite": "lax"
+        },
+        {
+          "name": "trackeat_session",
+          "httpOnly": true,
+          "secure": true,
+          "sameSite": "lax"
+        }
+      ]
+    }
+  ],
+  "httpRedirect": {
+    "status": 301,
+    "location": "https://parcel-questions-forestry-laptops.trycloudflare.com/menu/",
+    "redirectsToHttps": true
+  }
+}

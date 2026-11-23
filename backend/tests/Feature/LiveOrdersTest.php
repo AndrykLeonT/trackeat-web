@@ -50,7 +50,7 @@ class LiveOrdersTest extends TestCase
         $this->assertArrayHasKey('csrf', $data);
         $this->assertSame(['key', 'url'], array_keys($data['socket']));
         Producto::first()->update(['disponible' => false]);
-        $this->getJson('/api/catalogo')->assertJsonCount(3, 'productos');
+        $this->getJson('/api/catalogo')->assertJsonCount(4, 'productos')->assertJsonFragment(['disponible' => false]);
     }
 
     public function test_request_retries_create_exactly_one_order_with_server_prices(): void

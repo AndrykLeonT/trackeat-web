@@ -2,8 +2,9 @@
 # El frontend se compila antes en Windows (pnpm build) y llega ya hecho en backend/public.
 FROM php:8.3-cli-alpine
 
-RUN apk add --no-cache postgresql-dev libzip-dev \
-    && docker-php-ext-install pdo_pgsql bcmath opcache pcntl zip \
+RUN apk add --no-cache postgresql-dev libzip-dev libpng-dev libjpeg-turbo-dev libwebp-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-install pdo_pgsql bcmath opcache pcntl zip gd \
     && printf 'opcache.enable_cli=1\nopcache.validate_timestamps=0\nmemory_limit=256M\n' > /usr/local/etc/php/conf.d/trackeat.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

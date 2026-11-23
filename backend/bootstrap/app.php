@@ -2,11 +2,12 @@
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdentificarNodo;
-use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\SecurityAudit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             : array_values(array_filter(array_map('trim', explode(',', $proxies)))));
         $middleware->append(IdentificarNodo::class);
         $middleware->web(append: [
+            SecurityAudit::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);

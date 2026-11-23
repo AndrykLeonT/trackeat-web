@@ -46,7 +46,7 @@ function Initialize-Php {
     if (!(Test-Path -LiteralPath $helper)) { throw 'Falta backend/scripts/team-database.php. Recupera ese archivo del proyecto.' }
     $script:phpFlags = @()
     $modules = (& $script:php -r 'echo json_encode(get_loaded_extensions());') | ConvertFrom-Json
-    foreach ($extension in @('pdo_pgsql','bcmath','mbstring','openssl','fileinfo','curl')) {
+    foreach ($extension in @('pdo_pgsql','bcmath','mbstring','openssl','fileinfo','curl','gd')) {
         if ($modules -notcontains $extension) {
             $dll = Join-Path (Split-Path $script:php) "ext/php_$extension.dll"
             if (!(Test-Path -LiteralPath $dll)) { throw "Falta la extension PHP $extension. Revisa php --ini." }

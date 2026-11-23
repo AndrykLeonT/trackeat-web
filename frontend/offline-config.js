@@ -8,7 +8,7 @@ export function offlineConfig(module) {
     const output = fileURLToPath(new URL(`../backend/public/${module}/`, import.meta.url));
     return {
         root: fileURLToPath(new URL(`./${module}/`, import.meta.url)),
-        base: './',
+        base: module === 'menu' ? '/menu/' : './',
         plugins: [
             svelte({ configFile: fileURLToPath(new URL('./svelte.config.js', import.meta.url)) }),
             tailwindcss(),
@@ -22,7 +22,7 @@ export function offlineConfig(module) {
                         .sort();
                     const hash = createHash('sha256');
                     for (const asset of assets) hash.update(readFileSync(`${output}/${asset}`));
-                    const template = readFileSync(new URL('./personal/service-worker.js', import.meta.url), 'utf8');
+                    const template = readFileSync(new URL(module === 'menu' ? './menu/service-worker.js' : './personal/service-worker.js', import.meta.url), 'utf8');
                     writeFileSync(
                         `${output}/sw.js`,
                         template

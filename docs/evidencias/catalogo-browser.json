@@ -1,0 +1,16 @@
+{
+  "results": [
+    "Alta de categoría desde formulario",
+    "Alta de producto con dos imágenes reales recodificadas",
+    "Reordenamiento de galería desde interfaz",
+    "Búsqueda parcial y categoría, salida codificada, detalle y galerías offline, carrito persistente y envío bloqueado sin red",
+    "Precio cambiado rechazado con 409, revisión pendiente persistente tras recarga y confirmación con total del servidor",
+    "Seguimiento propio, cliente ajeno 404, inexistente 404, administración 403 y personal permitido",
+    "Producto agotado visible sin permitir pedirlo",
+    "Baja lógica y restauración desde interfaz",
+    "Menú y administración en viewport móvil de 390 píxeles",
+    "Almacenamiento insuficiente informa descarga incompleta sin prometer galerías offline"
+  ],
+  "browserErrors": [],
+  "passed": 10
+}

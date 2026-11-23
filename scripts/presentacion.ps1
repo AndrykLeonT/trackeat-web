@@ -55,7 +55,7 @@ try {
     $taskPhpDir = Split-Path $taskPhp
     $taskFlags = @('-d', "extension_dir=$taskPhpDir/ext")
     $modules = (& $taskPhp -r 'echo json_encode(get_loaded_extensions());') | ConvertFrom-Json
-    foreach ($extension in @('pdo_pgsql','bcmath','mbstring','openssl','fileinfo','curl')) {
+    foreach ($extension in @('pdo_pgsql','bcmath','mbstring','openssl','fileinfo','curl','gd')) {
         if ($modules -notcontains $extension) { $taskFlags += @('-d', "extension=$extension") }
     }
     if ($TestDatabase) {

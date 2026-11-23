@@ -9,6 +9,7 @@
         children,
         nativeNavigation = false,
         currentUrl = null,
+        userRole = null,
         headerTitle = 'Panel Principal',
         connectionLabel = 'Servicio Activo',
         connected = true,
@@ -40,7 +41,7 @@
 <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
     <!-- Barra lateral fija en Desktop (oculta en pantallas menores a md) -->
     <aside class="hidden md:block w-64 flex-shrink-0 border-r border-sidebar-border bg-sidebar">
-        <Sidebar {nativeNavigation} {currentUrl} />
+        <Sidebar {nativeNavigation} {currentUrl} {userRole} />
     </aside>
 
     <!-- Menú Desplegable Móvil (Slide-over Drawer) -->
@@ -80,7 +81,7 @@
                 </div>
 
                 <!-- Contenido del Sidebar reutilizado -->
-                <Sidebar onNavigate={closeMobileMenu} {nativeNavigation} {currentUrl} />
+                <Sidebar onNavigate={closeMobileMenu} {nativeNavigation} {currentUrl} {userRole} />
             </div>
         </dialog>
     {/if}

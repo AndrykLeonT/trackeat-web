@@ -2,32 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Categoria;
 use App\Models\Pedido;
-use App\Models\Producto;
 use App\Services\PedidoService;
+use App\Support\OrderAccess;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class TrackEatController extends Controller
 {
     private function staff(Request $request): bool
     {
         return in_array($request->user()->rol, ['administrador', 'cocinero', 'mesero', 'cajero'], true);
-    }
-
-    public function catalogo()
-    {
-        return response()->json([
-            'categorias' => Categoria::activos()->where('disponible', true)->orderBy('nombre')->get(['id', 'nombre', 'estacion']),
-            'productos' => Producto::activos()->where('disponible', true)
-                ->whereHas('categoria', fn ($q) => $q->activos()->where('disponible', true))
-                ->with('imagenes')->orderBy('nombre')->get()->map(fn ($p) => [
-                    'id' => $p->id, 'id_categoria' => $p->id_categoria, 'nombre' => $p->nombre,
-                    'descripcion' => $p->descripcion, 'precio' => $p->precio,
-                    'imagen' => $p->imagenes->first(fn ($i) => ! $i->eliminado)?->url ?? '/logo.svg',
-                ]),
-            'actualizado' => now()->toISOString(),
-        ])->header('Cache-Control', 'no-store');
     }
 
     public function sesion(Request $request)
@@ -44,12 +29,19 @@ class TrackEatController extends Controller
 
     public function pedidos(Request $request)
     {
-        $query = Pedido::activos()->with(['items.producto', 'estaciones']);
-        if (! $this->staff($request)) {
-            $query->where('id_usuario', $request->user()->id);
-        }
+        $query = OrderAccess::query($request->user())->with(['items.producto', 'estaciones']);
 
-        return response()->json($query->orderByDesc('id')->limit(200)->get());
+        return response()->json($query->orderByDesc('id')->limit(200)->get())->header('Cache-Control', 'no-store');
+    }
+
+    public function detalle(Request $request, int $pedido)
+    {
+        return response()->json(OrderAccess::find($request->user(), $pedido)->load('items.producto', 'estaciones'))->header('Cache-Control', 'no-store');
+    }
+
+    public function paginaPedido(Request $request, int $pedido)
+    {
+        return Inertia::render('public/pedido', ['pedido' => OrderAccess::find($request->user(), $pedido)->load('items.producto', 'estaciones')]);
     }
 
     public function crear(Request $request, PedidoService $service)
@@ -58,7 +50,8 @@ class TrackEatController extends Controller
             'client_request_id' => ['required', 'uuid'], 'tipo_entrega' => ['required', 'string'],
             'num_mesa' => ['nullable', 'integer'], 'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*.id_producto' => ['required', 'integer'], 'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:100'],
-            'items.*.notas' => ['nullable', 'string', 'max:1000'],
+            'items.*.notas' => ['nullable', 'string', 'max:1000', 'not_regex:/\x00/u'],
+            'items.*.precio_confirmado' => ['sometimes', 'required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
         ]);
         // The caller cannot choose another customer or submit their own total.
         $data['id_usuario'] = $request->user()->id;
@@ -69,6 +62,7 @@ class TrackEatController extends Controller
 
     public function avanzar(Request $request, Pedido $pedido, PedidoService $service)
     {
+        OrderAccess::find($request->user(), $pedido->id);
         $data = $request->validate(['estacion' => ['required', 'string'], 'estado' => ['required', 'string']]);
 
         return response()->json($service->avanzar($request->user(), $pedido->id, $data['estacion'], $data['estado']));

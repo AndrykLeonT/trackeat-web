@@ -2,12 +2,20 @@
     import { onMount } from 'svelte';
     import AppLayout from '@/layouts/AppLayout.svelte';
     import { api, session } from '@/lib/trackeat';
-    import { prepareOffline } from '../personal/offline.js';
+    import { prepareOffline, downloadGalleries, galleryReady } from './offline.js';
     import * as db from './db.js';
     import logo from '@/assets/images/logo.png';
     import Utensils from '@lucide/svelte/icons/utensils';
 
-    const emptyCart = () => ({ items: [], tipo_entrega: 'para_llevar', num_mesa: '', requestId: null, pending: false });
+    const emptyCart = () => ({
+        items: [],
+        tipo_entrega: 'para_llevar',
+        num_mesa: '',
+        requestId: null,
+        pending: false,
+        needsReview: false,
+        reviewChanges: [],
+    });
     let catalog = $state([]);
     let categories = $state([]);
     let name = $state('');
@@ -18,6 +26,14 @@
     let connected = $state(false);
     let connectionLabel = $state('Conectando…');
     let offlineReady = $state(false);
+    let imagesReady = $state(false);
+    let galleryWarning = $state('');
+    let detailId = $state(location.pathname.match(/^\/menu\/(\d+)\/?$/)?.[1] ?? null);
+    let detail = $state(null);
+    let selectedImage = $state(0);
+    let cartChanges = $state([]);
+    let needsReview = $state(false);
+    let confirmedOrder = $state(null);
     let lastUpdated = $state('');
     let error = $state('');
     let message = $state('');
@@ -26,6 +42,39 @@
     const total = $derived(cart.items.reduce((sum, item) => sum + item.cantidad * Number(item.precio), 0));
     const activeUser = $derived(user && (!user.demo_expires_at || Date.parse(user.demo_expires_at) > Date.now()));
     let searchVersion = 0;
+
+    async function openDetail(id, push = true) {
+        detailId = id;
+        selectedImage = 0;
+        detail = id ? await db.product(id) : null;
+        if (push) history.pushState({}, '', id ? `/menu/${id}` : '/menu/');
+    }
+    async function reconcileCart() {
+        const changes = [];
+        for (const item of cart.items) {
+            const product = await db.product(item.id_producto);
+            item.unavailable = !product || product.disponible === false;
+            if (item.unavailable) changes.push(`${item.nombre}: agotado o retirado del menú. Quita este producto para continuar.`);
+            else if (Number(item.precio) !== Number(product.precio)) {
+                changes.push(`${item.nombre}: cambió de $${Number(item.precio).toFixed(2)} a $${Number(product.precio).toFixed(2)} MXN.`);
+                item.precio = product.precio;
+            }
+        }
+        if (changes.length) {
+            cartChanges = changes;
+            needsReview = true;
+            cart.needsReview = true;
+            cart.reviewChanges = changes;
+        }
+        await persist();
+    }
+    async function reviewCart() {
+        needsReview = false;
+        cartChanges = [];
+        cart.needsReview = false;
+        cart.reviewChanges = [];
+        await changeCart();
+    }
 
     function status(label, value) {
         connectionLabel = label;
@@ -54,6 +103,16 @@
         categories = await db.categories();
         lastUpdated = data.actualizado;
         await search();
+        await openDetail(detailId, false);
+        if (!cart.pending) await reconcileCart();
+        try {
+            await downloadGalleries(data);
+            imagesReady = true;
+            galleryWarning = '';
+        } catch {
+            imagesReady = false;
+            galleryWarning = 'El texto del menú está guardado, pero faltan imágenes sin conexión. Reintenta con internet y espacio disponible.';
+        }
     }
     async function reconnect() {
         online = navigator.onLine;
@@ -78,9 +137,13 @@
         (async () => {
             try {
                 cart = (await db.loadCart()) || emptyCart();
+                needsReview = cart.needsReview ?? false;
+                cartChanges = cart.reviewChanges ?? [];
                 categories = await db.categories();
                 lastUpdated = (await db.updated())?.value || '';
                 await search();
+                await openDetail(detailId, false);
+                imagesReady = await galleryReady({ productos: await db.products() });
                 if (disposed) return;
                 initialized = true;
                 prepareOffline()
@@ -97,14 +160,17 @@
         })();
         window.addEventListener('online', reconnect);
         window.addEventListener('offline', reconnect);
+        const pop = () => openDetail(location.pathname.match(/^\/menu\/(\d+)\/?$/)?.[1] ?? null, false);
+        window.addEventListener('popstate', pop);
         return () => {
             disposed = true;
             window.removeEventListener('online', reconnect);
             window.removeEventListener('offline', reconnect);
+            window.removeEventListener('popstate', pop);
         };
     });
     async function add(product) {
-        if (cart.pending || busy) return;
+        if (cart.pending || busy || product.disponible === false) return;
         const existing = cart.items.find((item) => item.id_producto === product.id);
         if (existing) existing.cantidad = Math.min(100, existing.cantidad + 1);
         else cart.items.push({ id_producto: product.id, cantidad: 1, notas: '', nombre: product.nombre, precio: product.precio });
@@ -124,11 +190,17 @@
     }
     async function remove(id) {
         cart.items = cart.items.filter((item) => item.id_producto !== id);
+        if (!cart.items.length) {
+            cartChanges = [];
+            needsReview = false;
+            cart.needsReview = false;
+            cart.reviewChanges = [];
+        }
         await changeCart();
     }
     async function send(event) {
         event.preventDefault();
-        if (!online || !activeUser || !cart.items.length || busy) return;
+        if (!online || !activeUser || !cart.items.length || busy || needsReview || cart.items.some((item) => item.unavailable)) return;
         busy = true;
         error = '';
         message = '';
@@ -143,17 +215,26 @@
                     client_request_id: cart.requestId,
                     tipo_entrega: cart.tipo_entrega,
                     ...(cart.tipo_entrega === 'comer_aqui' ? { num_mesa: Number(cart.num_mesa) } : {}),
-                    items: cart.items.map(({ id_producto, cantidad, notas }) => ({ id_producto, cantidad, notas })),
+                    items: cart.items.map(({ id_producto, cantidad, notas, precio }) => ({
+                        id_producto,
+                        cantidad,
+                        notas,
+                        precio_confirmado: String(precio),
+                    })),
                 },
             });
             cart = emptyCart();
             await persist();
             message = `Pedido confirmado: ${order.numero_pedido}. Total: $${Number(order.total).toFixed(2)} MXN.`;
+            confirmedOrder = order.id;
+            needsReview = false;
+            cartChanges = [];
         } catch (e) {
-            if ([401, 403, 422, 429].includes(e.status)) {
+            if ([401, 403, 409, 422, 429].includes(e.status)) {
                 cart.pending = false;
                 cart.requestId = null;
                 await changeCart();
+                if ([409, 422].includes(e.status)) await syncCatalog().catch(() => {});
             }
             error = cart.pending ? `${e.message} No se recibió confirmación. Reintenta el mismo envío para evitar duplicados.` : e.message;
         } finally {
@@ -162,7 +243,7 @@
     }
 </script>
 
-<AppLayout nativeNavigation currentUrl="/menu/" headerTitle="Menú Digital" {connected} {connectionLabel}>
+<AppLayout nativeNavigation currentUrl="/menu/" headerTitle="Menú Digital" userRole={user?.rol} {connected} {connectionLabel}>
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
             <div>
@@ -175,16 +256,63 @@
                 >{/if}
         </div>
         <p class="text-sm text-muted-foreground" data-testid="offline-status">
-            {offlineReady && lastUpdated ? 'Menú disponible sin conexión.' : 'Preparando el menú sin conexión…'}
+            {offlineReady && imagesReady && lastUpdated
+                ? 'Menú y galerías disponibles sin conexión.'
+                : lastUpdated
+                  ? 'Menú guardado; verificando descarga completa de imágenes.'
+                  : 'Preparando el menú sin conexión…'}
             {lastUpdated ? `Actualizado: ${new Date(lastUpdated).toLocaleString('es-MX')}.` : 'Abre con conexión para descargar el catálogo.'}
         </p>
+        {#if galleryWarning}<p role="alert" class="text-sm text-destructive">{galleryWarning}</p>{/if}
+        <button
+            type="button"
+            onclick={reconnect}
+            disabled={!online || busy || cart.pending}
+            class="text-sm font-semibold text-primary disabled:opacity-50">Actualizar menú</button
+        >
         {#if !online}<p class="rounded-xl border border-border bg-muted p-3 text-sm">
                 Sin conexión: puedes consultar el menú y preparar tu carrito. Confirma el envío cuando vuelva la red.
             </p>{/if}
         <p role="status" class="break-words text-sm text-primary">{message}</p>
+        {#if confirmedOrder}<a href={`/pedidos/${confirmedOrder}`} class="font-semibold text-primary">Ver seguimiento del pedido</a>{/if}
         {#if error}<p role="alert" class="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm">{error}</p>{/if}
         <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <section aria-label="Catálogo de productos" class="min-w-0 space-y-4">
+                {#if detailId}
+                    <section aria-label="Detalle de producto" class="space-y-4 rounded-2xl border border-border bg-card p-5">
+                        <button type="button" onclick={() => openDetail(null)} class="text-primary">Volver al menú</button>
+                        {#if detail}<h2 class="text-2xl font-bold break-words">{detail.nombre}</h2>
+                            <img
+                                src={detail.imagenes?.[selectedImage]?.url === '/logo.svg' ? logo : detail.imagenes?.[selectedImage]?.url || logo}
+                                alt={`${detail.nombre}, imagen ${selectedImage + 1}`}
+                                onerror={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = logo;
+                                }}
+                                class="max-h-80 w-full rounded-xl bg-muted object-contain"
+                            />
+                            <div class="flex flex-wrap gap-2">
+                                {#each detail.imagenes || [] as image, index (image.id)}<button
+                                        type="button"
+                                        aria-label={`Ver imagen ${index + 1}`}
+                                        aria-pressed={selectedImage === index}
+                                        onclick={() => (selectedImage = index)}
+                                        class="rounded-lg border border-input px-3 py-2">{index + 1}</button
+                                    >{/each}
+                            </div>
+                            <p class="whitespace-pre-wrap break-words">{detail.descripcion}</p>
+                            <strong>${Number(detail.precio).toFixed(2)} MXN</strong>
+                            <button
+                                type="button"
+                                disabled={!initialized || cart.pending || busy || detail.disponible === false}
+                                onclick={() => add(detail)}
+                                class="ml-3 rounded-xl bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-50"
+                                >{detail.disponible === false ? 'Agotado' : 'Agregar al carrito'}</button
+                            >
+                        {:else}<h2 class="text-xl font-bold">Producto no disponible</h2>
+                            <p>El producto no está en el catálogo guardado. Actualiza el menú cuando tengas conexión.</p>{/if}
+                    </section>
+                {/if}
                 <div class="grid gap-3 sm:grid-cols-2">
                     <label class="text-sm font-medium"
                         >Buscar producto<input
@@ -232,13 +360,23 @@
                                 <span class="text-xs font-semibold text-primary"
                                     >{categories.find((entry) => entry.id === product.id_categoria)?.nombre}</span
                                 >
-                                <h2 class="text-base font-bold">{product.nombre}</h2>
+                                <h2 class="text-base font-bold">
+                                    <a
+                                        href={`/menu/${product.id}`}
+                                        onclick={(event) => {
+                                            event.preventDefault();
+                                            openDetail(product.id);
+                                        }}
+                                        class="hover:underline">{product.nombre}</a
+                                    >
+                                </h2>
+                                {#if product.disponible === false}<p class="text-sm font-semibold text-destructive">Agotado</p>{/if}
                                 <p class="flex-1 text-sm text-muted-foreground">{product.descripcion}</p>
                                 <div class="flex items-center justify-between gap-2">
                                     <strong>${Number(product.precio).toFixed(2)} MXN</strong><button
                                         type="button"
                                         onclick={() => add(product)}
-                                        disabled={!initialized || cart.pending || busy}
+                                        disabled={!initialized || cart.pending || busy || product.disponible === false}
                                         class="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                                         aria-label={`Agregar ${product.nombre}`}>Agregar</button
                                     >
@@ -252,11 +390,20 @@
             </section>
             <section aria-labelledby="cart-title" class="min-w-0 self-start rounded-2xl border border-border bg-card p-5 shadow-xs">
                 <h2 id="cart-title" class="text-lg font-bold">Tu carrito</h2>
+                {#if cartChanges.length}<div role="status" class="mt-3 space-y-2 rounded-xl bg-muted p-3 text-sm">
+                        <p class="font-semibold">Revisa los cambios del menú</p>
+                        {#each cartChanges as change, index (index)}<p>{change}</p>{/each}{#if needsReview}<button
+                                type="button"
+                                onclick={reviewCart}
+                                class="font-semibold text-primary">He revisado los cambios</button
+                            >{/if}
+                    </div>{/if}
                 <form onsubmit={send} class="mt-3 space-y-4">
                     <fieldset disabled={cart.pending || busy} class="min-w-0 space-y-4">
                         {#each cart.items as item (item.id_producto)}
                             <div class="space-y-2 border-b border-border pb-3">
                                 <h3 class="font-semibold">{item.nombre}</h3>
+                                {#if item.unavailable}<p class="text-sm text-destructive">No disponible. Quita este producto.</p>{/if}
                                 <label class="block text-sm"
                                     >Cantidad de {item.nombre}<input
                                         type="number"
@@ -306,7 +453,14 @@
                         </p>{/if}
                     <button
                         type="submit"
-                        disabled={!initialized || !online || !activeUser || user?.rol !== 'cliente' || !cart.items.length || busy}
+                        disabled={!initialized ||
+                            !online ||
+                            !activeUser ||
+                            user?.rol !== 'cliente' ||
+                            !cart.items.length ||
+                            busy ||
+                            needsReview ||
+                            cart.items.some((item) => item.unavailable)}
                         class="w-full rounded-xl bg-primary p-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                         >{busy ? 'Enviando…' : cart.pending ? 'Reintentar envío' : 'Confirmar pedido'}</button
                     >

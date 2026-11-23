@@ -208,7 +208,17 @@ Ver [preparación, pruebas y guion de diez minutos](docs/avance-2.md) y
 
 La Práctica 5 (balanceo con dos nodos, Reverb por nodo y Redis) se levanta con Docker, en una sola PC o repartida en tres: ver el [informe de la práctica](docs/informe-practica-5.md) y [balanceo y despliegue](docs/balanceo.md#despliegue).
 
-## 9. Equipo
+## 9. Catálogo y seguridad asignada
+
+El módulo de catálogo incluye administración de productos y categorías, galería segura, agotados visibles, bajas y restauración, detalle enlazable y consulta de galerías sin conexión. Requiere la migración nueva de unicidad de nombres y PHP GD con soporte WebP. Consultar [funciones, interfaces y ejecución](docs/catalogo-menu.md).
+
+La revisión de seguridad distingue las medidas comprobadas de los pendientes del equipo: [lista de las 14 medidas](docs/seguridad-verificacion.md), [superficies](docs/superficies.md), [configuración comentada de servidor](docs/seguridad-servidor.md), [exposición de cinco minutos](docs/exposicion-seguridad.md) y [resultados de validación](docs/validacion-catalogo.md). La existencia de esta documentación no acredita que las 14 medidas estén implementadas.
+
+### Declaración de uso de IA
+
+Se utilizó Codex para revisar el código, proponer decisiones que fueron respondidas por la responsable del módulo, implementar catálogo y seguridad asignada, preparar pruebas y redactar borradores de documentación y exposición. Las evidencias indican cuáles comprobaciones se ejecutaron y cuáles siguen pendientes. El equipo debe revisar el contenido y ensayar la demostración antes de entregarlo; no se atribuye a la revisión humana una validación que aún no se haya realizado.
+
+## 10. Equipo
 
 | Integrante | No. de control | Rol |
 | --- | --- | --- |

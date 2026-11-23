@@ -58,12 +58,14 @@ export function saveCatalog(data) {
 export function products({ nombre = '', categoria = '' } = {}) {
     return transaction(['productos'], 'readonly', (tx) => {
         const store = tx.objectStore('productos');
-        const prefix = normalize(nombre);
-        if (prefix) return store.index('porNombre').getAll(IDBKeyRange.bound(prefix, `${prefix}\uffff`));
         if (categoria) return store.index('porCategoria').getAll(Number(categoria));
         return store.getAll();
-    }).then((rows) => rows.filter((row) => !categoria || row.id_categoria === Number(categoria)));
+    }).then((rows) =>
+        rows.filter((row) => (!categoria || row.id_categoria === Number(categoria)) && normalize(row.nombre).includes(normalize(nombre))),
+    );
 }
+
+export const product = (id) => transaction(['productos'], 'readonly', (tx) => tx.objectStore('productos').get(Number(id)));
 
 export const categories = () => transaction(['categorias'], 'readonly', (tx) => tx.objectStore('categorias').getAll());
 export const updated = () => transaction(['metadatos'], 'readonly', (tx) => tx.objectStore('metadatos').get('actualizado'));
