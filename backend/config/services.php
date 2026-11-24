@@ -28,6 +28,14 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    // Captcha de Cloudflare en el registro y el login (Práctica 6). La llave del sitio es pública;
+    // la secreta solo la usa el servidor para preguntar a Cloudflare si el token es válido.
+    'turnstile' => [
+        'enabled' => (bool) env('TURNSTILE_ENABLED', true),
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

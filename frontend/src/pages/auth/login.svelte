@@ -10,19 +10,26 @@
     import Input from '@/components/ui/input.svelte';
     import Label from '@/components/ui/label.svelte';
     import AuthLayout from '@/layouts/auth-layout.svelte';
+    import Turnstile from '@/components/turnstile.svelte';
 
-    let { status, canResetPassword } = $props();
+    // turnstileSiteKey: llave pública del captcha de Cloudflare (la manda el servidor); null si está apagado.
+    let { status, canResetPassword, turnstileSiteKey = null } = $props();
+    let captcha = $state(null);
 
     let form = useForm({
         email: '',
         password: '',
         remember: false,
+        'cf-turnstile-response': '',
     });
 
     function submit(e) {
         e.preventDefault();
         $form.post(route('login'), {
-            onFinish: () => $form.reset('password'),
+            onFinish: () => {
+                $form.reset('password');
+                captcha?.reiniciar();
+            },
         });
     }
 </script>
@@ -69,6 +76,11 @@
             <div class="flex items-center space-x-3">
                 <Checkbox id="remember" name="remember" tabindex={3} bind:checked={$form.remember} />
                 <Label for="remember">Remember me</Label>
+            </div>
+
+            <div class="grid gap-2">
+                <Turnstile siteKey={turnstileSiteKey} bind:token={$form['cf-turnstile-response']} bind:this={captcha} />
+                <InputError message={$form.errors['cf-turnstile-response']} />
             </div>
 
             <Button type="submit" class="mt-4 w-full" tabindex={4} disabled={$form.processing}>

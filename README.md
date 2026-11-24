@@ -32,7 +32,8 @@ su pedido, lo que evita confusiones y reduce el tiempo que el personal dedica a 
 y filtrado, registro e inicio de sesión, gestión de tipos de usuario, carrito de pedidos,
 confirmación de pedidos con identificador, sistema de comandas, actualización y consulta del estado
 del pedido, historial del cliente, panel administrativo con gráficos básicos, actualización en
-tiempo real, consulta básica del menú sin conexión y protección CAPTCHA en formularios públicos.
+tiempo real, consulta básica del menú sin conexión, captcha de Cloudflare Turnstile en el registro y el
+inicio de sesión, y campo trampa en el registro.
 
 **No incluye:** pagos en línea, facturación electrónica, app móvil nativa, integración con Uber Eats
 o DiDi Food, repartidores propios, geolocalización o GPS, reservación de mesas, programa de puntos,

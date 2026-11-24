@@ -30,5 +30,7 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <!-- El captcha llama a Cloudflare: apagado en las pruebas; CaptchaTest lo enciende y simula la respuesta. -->
+        <env name="TURNSTILE_ENABLED" value="false"/>
     </php>
 </phpunit>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\Turnstile;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -30,7 +31,15 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            // Captcha (Práctica 6): se valida antes de authenticate(), así un bot sin token
+            // ni siquiera llega a probar la contraseña.
+            Turnstile::CAMPO => Turnstile::reglas(),
         ];
+    }
+
+    public function messages(): array
+    {
+        return [Turnstile::CAMPO.'.required' => Turnstile::MENSAJE];
     }
 
     /**

@@ -9,6 +9,11 @@
     import Input from '@/components/ui/input.svelte';
     import Label from '@/components/ui/label.svelte';
     import AuthLayout from '@/layouts/auth-layout.svelte';
+    import Turnstile from '@/components/turnstile.svelte';
+
+    // Llave pública del captcha de Cloudflare (la manda el servidor); null si está apagado.
+    let { turnstileSiteKey = null } = $props();
+    let captcha = $state(null);
 
     let form = useForm({
         name: '',
@@ -17,12 +22,16 @@
         password_confirmation: '',
         // Campo trampa: una persona nunca lo llena. Si llega con texto, lo llenó un bot.
         website: '',
+        'cf-turnstile-response': '',
     });
 
     function submit(e) {
         e.preventDefault();
         $form.post(route('register'), {
-            onFinish: () => $form.reset('password', 'password_confirmation'),
+            onFinish: () => {
+                $form.reset('password', 'password_confirmation');
+                captcha?.reiniciar();
+            },
         });
     }
 </script>
@@ -97,6 +106,11 @@
                     placeholder="Confirm password"
                 />
                 <InputError message={$form.errors.password_confirmation} />
+            </div>
+
+            <div class="grid gap-2">
+                <Turnstile siteKey={turnstileSiteKey} bind:token={$form['cf-turnstile-response']} bind:this={captcha} />
+                <InputError message={$form.errors['cf-turnstile-response']} />
             </div>
 
             <Button type="submit" class="mt-2 w-full" tabindex={5} disabled={$form.processing}>
