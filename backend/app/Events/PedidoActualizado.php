@@ -13,8 +13,8 @@ class PedidoActualizado implements ShouldBroadcast, ShouldDispatchAfterCommit
 
     public array $backoff = [1, 2, 5, 10];
 
-    // `$userId` es nulo en pedidos capturados sin cuenta de cliente.
-    public function __construct(public array $pedido, private ?int $userId, private ?string $room) {}
+    // `$userId` es quien levantó el pedido: un cliente (web) o el personal que lo capturó.
+    public function __construct(public array $pedido, private int $userId, private ?string $room) {}
 
     public static function forOrder(Pedido $order): self
     {
@@ -26,10 +26,7 @@ class PedidoActualizado implements ShouldBroadcast, ShouldDispatchAfterCommit
 
     public function broadcastOn(): array
     {
-        $channels = [new PrivateChannel('trackeat.personal')];
-        if ($this->userId !== null) {
-            $channels[] = new PrivateChannel('trackeat.usuario.'.$this->userId);
-        }
+        $channels = [new PrivateChannel('trackeat.personal'), new PrivateChannel('trackeat.usuario.'.$this->userId)];
         if ($this->room) {
             $channels[] = new PrivateChannel('trackeat.demo.'.$this->room);
         }

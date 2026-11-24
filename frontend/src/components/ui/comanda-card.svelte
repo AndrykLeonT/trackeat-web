@@ -2,6 +2,7 @@
     import Clock from '@lucide/svelte/icons/clock';
     import ChefHat from '@lucide/svelte/icons/chef-hat';
     import { states } from '@/lib/trackeat';
+    import { formatoFolio } from '@/lib/folio';
     let { order, role, disabled = false, onadvance } = $props();
     function next(state) {
         return { recibido: 'preparacion', preparacion: 'listo', listo: 'entregado' }[state];
@@ -18,7 +19,7 @@
 <article class="flex flex-col justify-between overflow-hidden rounded-2xl border border-border border-t-4 border-t-primary bg-card p-5 shadow-xs">
     <div>
         <div class="space-y-2 border-b border-border pb-3">
-            <h2 class="break-all text-xs font-bold text-muted-foreground">{order.numero_pedido}</h2>
+            <h2 class="break-all text-xs font-bold text-muted-foreground">{formatoFolio(order.numero_pedido)}</h2>
             <span class="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-xs font-bold text-primary"
                 >{states[order.estado]}</span
             >

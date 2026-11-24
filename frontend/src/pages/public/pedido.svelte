@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import AppLayout from '@/layouts/AppLayout.svelte';
     import { api, session, connectLive, states } from '@/lib/trackeat';
+    import { formatoFolio } from '@/lib/folio';
     let { pedido } = $props();
     let order = $derived(pedido);
     let error = $state('');
@@ -42,7 +43,7 @@
     <div class="max-w-3xl space-y-5">
         <a href="/menu/" class="text-primary">Volver al menú</a>
         {#if error}<p role="alert" class="text-destructive">{error}</p>{/if}
-        {#if order}<h1 class="break-words text-2xl font-bold">Pedido {order.numero_pedido}</h1>
+        {#if order}<h1 class="break-words text-2xl font-bold">Pedido {formatoFolio(order.numero_pedido)}</h1>
             <p role="status" class="text-lg font-semibold">{states[order.estado] || order.estado}</p>
             <div class="flex flex-wrap gap-3">
                 {#each order.estaciones as station (station.id)}<p class="rounded-xl border border-border bg-card p-3">

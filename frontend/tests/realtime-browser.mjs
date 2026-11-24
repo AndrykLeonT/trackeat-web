@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { formatoFolio } from '../src/lib/folio.js';
 
 // Use only a server started against the isolated demo test database.
 const base = process.env.TRACKEAT_TEST_URL;
@@ -57,9 +58,9 @@ async function scenario(blockSocket) {
             .getByRole('status', { name: blockSocket ? 'Actualización automática · cada 5 s' : 'Tiempo real conectado', exact: true })
             .waitFor();
         navigations = 0;
-        const card = staff.getByRole('article').filter({ has: staff.getByRole('heading', { name: order.numero_pedido, exact: true }) });
+        const card = staff.getByRole('article').filter({ has: staff.getByRole('heading', { name: formatoFolio(order.numero_pedido), exact: true }) });
         await card.waitFor();
-        const row = client.locator('li').filter({ hasText: order.numero_pedido });
+        const row = client.locator('li').filter({ hasText: formatoFolio(order.numero_pedido) });
         for (const [button, state] of [
             ['Empezar a preparar', 'En preparación'],
             ['Marcar listo', 'Listo'],

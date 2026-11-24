@@ -36,12 +36,12 @@ class DemoSeeder extends Seeder
                 'cocinero' => 'cocinero', 'cajero' => 'cajero', 'mesero' => 'mesero'] as $key => $role) {
                 $users[$key] = (new User)->forceFill(['name' => ucfirst($key).' Demo', 'primer_nombre' => ucfirst($key),
                     'primer_apellido' => 'Demo', 'email' => "$key@example.test", 'password' => 'TrackEatDemo!2026',
-                    'rol' => $role, 'email_verified_at' => now()]);
+                    'rol' => $role, 'estacion' => $role === 'cocinero' ? 'general' : null, 'email_verified_at' => now()]);
                 $users[$key]->save();
             }
             $products = [];
             foreach ([['Hamburguesas', 'cocina', [['Hamburguesa', '120.00'], ['Papas', '50.00']]],
-                ['Bebidas', 'barra', [['Limonada', '30.00']]], ['Empaquetados', 'general', [['Snack', '25.00']]]] as [$name, $station, $items]) {
+                ['Bebidas', 'barra', [['Limonada', '30.00']]], ['Empaquetados', 'cocina', [['Snack', '25.00']]]] as [$name, $station, $items]) {
                 $category = Categoria::create(['nombre' => $name, 'estacion' => $station]);
                 foreach ($items as [$product, $price]) {
                     $products[$product] = $category->productos()->create(['nombre' => $product, 'precio' => $price,
@@ -51,8 +51,9 @@ class DemoSeeder extends Seeder
             }
             $orders = app(PedidoService::class);
             $cash = app(CajaService::class);
-            $make = function (string $number, User $client, array $items, string $type = 'para_llevar', ?int $mesa = null) use ($orders, $users, $products) {
-                $order = $orders->crear($users['mesero'], ['id_usuario' => $client->id, 'tipo_entrega' => $type, 'num_mesa' => $mesa,
+            $make = function (string $number, User $client, array $items, string $type = 'para_llevar', ?int $mesa = null) use ($orders, $products) {
+                // Cada pedido de ejemplo lo levanta su propio cliente, como si lo hubiera hecho en la web.
+                $order = $orders->crear($client, ['tipo_entrega' => $type, 'num_mesa' => $mesa,
                     'items' => array_map(fn ($name) => ['id_producto' => $products[$name]->id, 'cantidad' => 1,
                         'notas' => $name === 'Hamburguesa' ? 'sin cebolla' : null], $items)]);
                 $order->update(['numero_pedido' => $number]);

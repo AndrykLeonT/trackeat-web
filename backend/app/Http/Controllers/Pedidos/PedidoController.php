@@ -43,8 +43,7 @@ class PedidoController extends Controller
             'items.*.notas' => ['nullable', 'string', 'max:1000', 'not_regex:/\x00/u'],
             'items.*.precio_confirmado' => ['sometimes', 'required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
         ]);
-        // The caller cannot choose another customer or submit their own total.
-        $data['id_usuario'] = $request->user()->id;
+        // El dueño del pedido lo fija el servicio (quien lo levanta); el cuerpo no puede elegirlo ni enviar el total.
         $order = $service->crear($request->user(), $data);
 
         return response()->json($order->load('items.producto', 'estaciones'));
