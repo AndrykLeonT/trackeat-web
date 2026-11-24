@@ -11,12 +11,17 @@
     import Users from '@lucide/svelte/icons/users';
     import Package from '@lucide/svelte/icons/package';
     import Tags from '@lucide/svelte/icons/tags';
+    import Banknote from '@lucide/svelte/icons/banknote';
+    import Wallet from '@lucide/svelte/icons/wallet';
+    import Lock from '@lucide/svelte/icons/lock';
+    import Receipt from '@lucide/svelte/icons/receipt';
+    import Eraser from '@lucide/svelte/icons/eraser';
 
     let { onNavigate = null, nativeNavigation = false, currentUrl = null, userRole = null } = $props();
     const role = $derived(userRole ?? $page?.props?.auth?.user?.rol);
 
     // Secciones organizadas de los módulos de TrackEat
-    const baseSections = [
+    const navigationSections = [
         {
             title: 'Operación',
             items: [
@@ -54,35 +59,50 @@
                 },
             ],
         },
+        // Módulo 3 · Pagos y caja: cada enlace indica qué roles lo ven.
+        {
+            title: 'Caja',
+            items: [
+                { name: 'Por cobrar', href: '/caja', icon: Banknote, roles: ['cajero'] },
+                { name: 'Turno actual', href: '/caja/turno', icon: Wallet, roles: ['cajero'] },
+                { name: 'Cerrar corte', href: '/caja/cerrar', icon: Lock, roles: ['cajero'] },
+                { name: 'Cortes', href: '/caja/cortes', icon: Receipt, roles: ['cajero', 'administrador'] },
+                { name: 'Purga', href: '/admin/purga', icon: Eraser, roles: ['administrador'] },
+            ],
+        },
+        {
+            title: 'Administración',
+            items: [
+                {
+                    name: 'Productos',
+                    href: '/admin/productos',
+                    icon: Package,
+                    roles: ['administrador'],
+                },
+                {
+                    name: 'Categorías',
+                    href: '/admin/categorias',
+                    icon: Tags,
+                    roles: ['administrador'],
+                },
+            ],
+        },
     ];
 
-    const navigationSections = $derived([
-        ...baseSections,
-        ...(role === 'administrador'
-            ? [
-                  {
-                      title: 'Administración',
-                      items: [
-                          {
-                              name: 'Productos',
-                              href: '/admin/productos',
-                              icon: Package,
-                          },
-                          {
-                              name: 'Categorías',
-                              href: '/admin/categorias',
-                              icon: Tags,
-                          },
-                      ],
-                  },
-              ]
-            : []),
-    ]);
+    // Los enlaces sin `roles` los ven todos; las secciones que se quedan vacías no se muestran.
+    let visibleSections = $derived.by(() => {
+        return navigationSections
+            .map((section) => ({ ...section, items: section.items.filter((item) => !item.roles || item.roles.includes(role)) }))
+            .filter((section) => section.items.length > 0);
+    });
 
     function isItemActive(href) {
         const url = currentUrl ?? $page?.url ?? '';
         if (href === '/dashboard') {
             return url === '/dashboard' || url === '/';
+        }
+        if (href === '/caja') {
+            return url === '/caja' || url.startsWith('/caja/pedidos') || url.startsWith('/caja/abrir');
         }
         return url.startsWith(href);
     }
@@ -128,7 +148,7 @@
 
         <!-- Lista de Módulos agrupados por sección -->
         <div class="space-y-6">
-            {#each navigationSections as section (section.title)}
+            {#each visibleSections as section (section.title)}
                 <div>
                     <p class="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-sidebar-foreground/60">
                         {section.title}

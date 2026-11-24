@@ -62,4 +62,5 @@ Route::get('/metricas', function () {
 
 require __DIR__.'/auth.php';
 require __DIR__.'/catalogo.php';
+require __DIR__.'/caja.php';
 Route::get('/pedidos/{pedido}', [TrackEatController::class, 'paginaPedido'])->middleware(['auth', ActiveTrackEatUser::class]);
