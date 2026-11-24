@@ -22,8 +22,9 @@ class CajaService
         return DB::transaction(function () use ($actor, $fondo) {
             // También serializa cuando todavía no existe ninguna fila de corte.
             DB::select('SELECT pg_advisory_xact_lock(742001)');
-            if (Corte::where('estado', 'abierto')->exists()) {
-                $this->invalid('corte', 'Debe cerrar el corte actual antes de abrir otro turno.');
+            // Un corte abierto por cajero: no se abre otro turno sin hacer el corte del anterior.
+            if (Corte::where('estado', 'abierto')->where('id_usuario', $actor->id)->exists()) {
+                $this->invalid('corte', 'Debes hacer el corte de tu turno actual antes de abrir otro.');
             }
 
             return Corte::create(['id_usuario' => $actor->id, 'fecha_apertura' => now(), 'total_caja_inicial' => $fondo])->refresh();

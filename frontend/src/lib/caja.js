@@ -18,6 +18,16 @@ export function centavos(valor) {
     return Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0'));
 }
 
+// Deja solo lo que puede ser un importe: dígitos y un punto, hasta 10 enteros y 2 decimales.
+// Las comas se quitan porque son separador de miles ("$1,500.00" → "1500.00").
+export function limpiarDinero(texto) {
+    let s = String(texto ?? '').replace(/[^\d.]/g, '');
+    const punto = s.indexOf('.');
+    if (punto !== -1) s = s.slice(0, punto + 1) + s.slice(punto + 1).replace(/\./g, '');
+    const [enteros, decimales] = s.split('.');
+    return decimales === undefined ? enteros.slice(0, 10) : `${enteros.slice(0, 10)}.${decimales.slice(0, 2)}`;
+}
+
 export function deCentavos(c) {
     const signo = c < 0 ? '-' : '';
     const abs = Math.abs(c);

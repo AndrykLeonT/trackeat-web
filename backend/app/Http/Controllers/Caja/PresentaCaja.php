@@ -10,11 +10,24 @@ use App\Models\User;
 // ("60.00") para que el navegador nunca los convierta en números de punto flotante.
 trait PresentaCaja
 {
-    private function corteAbierto(): ?Corte
+    // Campos de dinero: solo números con hasta dos decimales, igual que App\Support\Money::parse.
+    private function reglaDinero(bool $obligatorio = true): array
     {
-        return Corte::activos()->where('estado', 'abierto')->with('usuario:id,name')->first();
+        return [$obligatorio ? 'required' : 'nullable', 'string', 'regex:/^\d{1,10}(\.\d{1,2})?$/'];
     }
 
+    private function mensajesDinero(array $campos): array
+    {
+        $mensajes = [];
+        foreach ($campos as $campo) {
+            $mensajes["$campo.regex"] = 'Solo se aceptan números, con hasta dos decimales (por ejemplo 150.50).';
+            $mensajes["$campo.string"] = 'Solo se aceptan números, con hasta dos decimales (por ejemplo 150.50).';
+        }
+
+        return $mensajes;
+    }
+
+    // Cada cajero trabaja sobre su propio corte abierto.
     private function corteDe(User $cajero): ?Corte
     {
         return Corte::activos()->where('estado', 'abierto')->where('id_usuario', $cajero->id)->first();

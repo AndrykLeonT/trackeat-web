@@ -7,12 +7,13 @@
     import { buttonVariants } from '@/components/ui/button.svelte';
     import { dinero, entrega, estadosPedido, fecha, recargarCada } from '@/lib/caja';
 
+    // `corte` es el turno abierto de este cajero (cada cajero tiene el suyo), o null.
     let { pedidos = [], corte = null } = $props();
 
     // Se refresca solo: los pedidos nuevos del módulo 2 aparecen sin recargar la página.
     onMount(() => recargarCada(['pedidos', 'corte']));
 
-    let puedeCobrar = $derived(corte?.es_mio === true);
+    let puedeCobrar = $derived(corte !== null);
 </script>
 
 <PageTitle title="Pedidos por cobrar" />
@@ -32,14 +33,9 @@
 
         {#if !corte}
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-                <p class="text-sm">No hay ningún turno abierto. Abre uno para empezar a cobrar.</p>
+                <p class="text-sm">No tienes un turno abierto. Abre uno para empezar a cobrar.</p>
                 <Link href={route('caja.abrir')} class={buttonVariants()}>Abrir turno</Link>
             </div>
-        {:else if !puedeCobrar}
-            <p class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
-                El turno está abierto por <b>{corte.cajero}</b> desde {fecha(corte.fecha_apertura)}. Solo hay una caja: podrás cobrar cuando ese turno
-                se cierre.
-            </p>
         {:else}
             <p class="text-sm text-muted-foreground">
                 Tu turno está abierto desde {fecha(corte.fecha_apertura)} con un fondo de {dinero(corte.total_caja_inicial)}.

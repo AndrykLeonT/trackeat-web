@@ -48,11 +48,11 @@ class CajaController extends Controller
                 ];
             });
 
-        $corte = $this->corteAbierto();
+        $corte = $this->corteDe($cajero);
 
         return Inertia::render('caja/index', [
             'pedidos' => $pedidos,
-            'corte' => $corte ? [...$this->corte($corte), 'es_mio' => $corte->id_usuario === $cajero->id] : null,
+            'corte' => $corte ? $this->corte($corte) : null,
         ]);
     }
 }

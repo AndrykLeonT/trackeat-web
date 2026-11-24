@@ -61,7 +61,31 @@ class CajaModuloTest extends TestCase
             ->where('pedidos.1.numero_pedido', 'DEMO-002')
             ->where('pedidos.1.pagado', '60.00')
             ->where('pedidos.1.saldo', '90.00')
-            ->where('corte.es_mio', true));
+            ->where('corte.id', $this->abierto()->id));
+    }
+
+    public function test_cada_cajero_trabaja_en_su_propio_turno(): void
+    {
+        $otro = (new User)->forceFill(['name' => 'Segundo Cajero', 'email' => 'segundo@example.test', 'password' => 'x', 'rol' => 'cajero']);
+        $otro->save();
+        $mio = $this->abierto();
+
+        // Sin turno, el segundo cajero ve los pedidos pero no su corte; abre el suyo mientras el otro sigue abierto.
+        $this->actingAs($otro)->get('/caja')->assertInertia(fn (Assert $page) => $page->where('corte', null)->has('pedidos', 2));
+        $this->post('/caja/abrir', ['total_caja_inicial' => '150'])->assertRedirect('/caja');
+        $suyo = Corte::where('id_usuario', $otro->id)->where('estado', 'abierto')->firstOrFail();
+        $this->assertSame(2, Corte::where('estado', 'abierto')->count());
+
+        // No abre otro sin hacer el corte del actual.
+        $this->get('/caja/abrir')->assertRedirect('/caja/turno');
+        $this->post('/caja/abrir', ['total_caja_inicial' => '50'])->assertSessionHasErrors('corte');
+
+        // Cada quien cobra en su propio corte y ve solo sus pagos en el turno.
+        $pedido = $this->pedido('DEMO-001');
+        $this->post("/caja/pedidos/{$pedido->id}/cobrar", ['metodo_pago' => 'efectivo', 'monto' => '10'])->assertRedirect();
+        $this->assertSame($suyo->id, Pago::where('id_pedido', $pedido->id)->value('id_corte'));
+        $this->get('/caja/turno')->assertInertia(fn (Assert $page) => $page->where('corte.id', $suyo->id)->has('pagos', 1));
+        $this->actingAs($this->cajero)->get('/caja/turno')->assertInertia(fn (Assert $page) => $page->where('corte.id', $mio->id)->has('pagos', 2));
     }
 
     public function test_pago_dividido_con_propina_deja_el_pedido_pagado(): void
@@ -88,6 +112,29 @@ class CajaModuloTest extends TestCase
         $this->post("/caja/pedidos/{$pedido->id}/cobrar", ['metodo_pago' => 'cheque', 'monto' => '5'])->assertSessionHasErrors('metodo_pago');
         $this->post("/caja/pedidos/{$pedido->id}/cobrar", ['metodo_pago' => 'efectivo', 'monto' => '5.123'])->assertSessionHasErrors('monto');
         $this->assertSame(0, Pago::where('id_pedido', $pedido->id)->count());
+    }
+
+    public function test_los_campos_de_dinero_solo_aceptan_numeros(): void
+    {
+        $pedido = $this->pedido('DEMO-001');
+        $mensaje = 'Solo se aceptan números, con hasta dos decimales (por ejemplo 150.50).';
+        $this->actingAs($this->cajero);
+        foreach (['abc', '12a', '$50', '-5', '1,000', '5.123', '1e3'] as $malo) {
+            $this->post("/caja/pedidos/{$pedido->id}/cobrar", ['metodo_pago' => 'efectivo', 'monto' => $malo])
+                ->assertSessionHasErrors(['monto' => $mensaje]);
+            $this->post("/caja/pedidos/{$pedido->id}/cobrar", ['metodo_pago' => 'efectivo', 'monto' => '5', 'propina' => $malo])
+                ->assertSessionHasErrors(['propina' => $mensaje]);
+            $this->post('/caja/cerrar', ['total_caja_final' => $malo, 'total_tarjeta_real' => '0', 'total_transferencia_real' => 'x'])
+                ->assertSessionHasErrors(['total_caja_final' => $mensaje, 'total_transferencia_real' => $mensaje]);
+        }
+        $this->assertSame(0, Pago::where('id_pedido', $pedido->id)->count());
+        $this->assertSame('abierto', $this->abierto()->estado);
+
+        // Al abrir turno pasa lo mismo (el cajero necesita no tener uno abierto).
+        $nuevo = (new User)->forceFill(['name' => 'Nuevo', 'email' => 'nuevo@example.test', 'password' => 'x', 'rol' => 'cajero']);
+        $nuevo->save();
+        $this->actingAs($nuevo)->post('/caja/abrir', ['total_caja_inicial' => '3OO'])->assertSessionHasErrors(['total_caja_inicial' => $mensaje]);
+        $this->assertSame(0, Corte::where('id_usuario', $nuevo->id)->count());
     }
 
     public function test_eliminar_y_reembolsar_desde_el_turno(): void
