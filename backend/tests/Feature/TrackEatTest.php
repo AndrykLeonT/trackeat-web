@@ -205,12 +205,19 @@ class TrackEatTest extends TestCase
         $this->rejected(fn () => $this->caja->cobrar($this->cajero, $order->id, $this->open()->id, 'efectivo', '1'));
     }
 
-    public function test_only_one_open_cut_and_only_owner_can_operate_it(): void
+    public function test_one_open_cut_per_cashier_and_only_owner_can_operate_it(): void
     {
+        $mine = $this->open();
         $other = User::factory()->create(['rol' => 'cajero']);
+        // Cada cajero abre su propio turno; nadie abre un segundo sin hacer el corte del primero.
+        $theirs = $this->caja->abrir($other, '10');
+        $this->assertSame(2, Corte::where('estado', 'abierto')->count());
         $this->rejected(fn () => $this->caja->abrir($other, '10'));
-        $this->rejected(fn () => $this->caja->cobrar($other, $this->order('DEMO-001')->id, $this->open()->id, 'efectivo', '10'), AuthorizationException::class);
+        $this->rejected(fn () => $this->caja->abrir($this->cajero, '10'));
+        $this->rejected(fn () => $this->caja->cobrar($other, $this->order('DEMO-001')->id, $mine->id, 'efectivo', '10'), AuthorizationException::class);
         $this->rejected(fn () => Corte::create(['id_usuario' => $other->id, 'fecha_apertura' => now(), 'total_caja_inicial' => '10']), QueryException::class);
+        $this->caja->cobrar($other, $this->order('DEMO-001')->id, $theirs->id, 'efectivo', '10');
+        $this->assertSame('15.00', $this->order('DEMO-001')->saldo());
     }
 
     public function test_closed_cut_separates_tips_and_freezes_financial_data(): void

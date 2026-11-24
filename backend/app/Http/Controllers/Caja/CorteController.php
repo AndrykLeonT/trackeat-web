@@ -20,17 +20,17 @@ class CorteController extends Controller
     public function create(Request $request): Response|RedirectResponse
     {
         DomainAccess::requireRole($request->user(), ['cajero']);
+        // No se abre otro turno sin hacer el corte del que sigue abierto.
         if ($this->corteDe($request->user())) {
-            return to_route('caja.turno');
+            return to_route('caja.turno')->with('status', 'Primero haz el corte de tu turno actual.');
         }
-        $abierto = $this->corteAbierto();
 
-        return Inertia::render('caja/abrir', ['corte' => $abierto ? $this->corte($abierto) : null]);
+        return Inertia::render('caja/abrir');
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $request->validate(['total_caja_inicial' => ['required', 'string']]);
+        $request->validate(['total_caja_inicial' => $this->reglaDinero()], $this->mensajesDinero(['total_caja_inicial']));
         $this->caja->abrir($request->user(), $request->input('total_caja_inicial'));
 
         return to_route('caja.index')->with('status', 'Turno abierto.');
@@ -63,11 +63,8 @@ class CorteController extends Controller
 
     public function cerrar(Request $request): RedirectResponse
     {
-        $request->validate([
-            'total_caja_final' => ['required', 'string'],
-            'total_tarjeta_real' => ['required', 'string'],
-            'total_transferencia_real' => ['required', 'string'],
-        ]);
+        $campos = ['total_caja_final', 'total_tarjeta_real', 'total_transferencia_real'];
+        $request->validate(array_fill_keys($campos, $this->reglaDinero()), $this->mensajesDinero($campos));
         DomainAccess::requireRole($request->user(), ['cajero']);
         $corte = $this->corteDe($request->user());
         if (! $corte) {

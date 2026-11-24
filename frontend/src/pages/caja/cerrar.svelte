@@ -5,7 +5,7 @@
     import Aviso from '@/components/caja/aviso.svelte';
     import Totales from '@/components/caja/totales.svelte';
     import Button from '@/components/ui/button.svelte';
-    import Input from '@/components/ui/input.svelte';
+    import InputDinero from '@/components/caja/input-dinero.svelte';
     import Label from '@/components/ui/label.svelte';
     import InputError from '@/components/input-error.svelte';
     import { centavos, deCentavos, diferencia, dinero, fecha } from '@/lib/caja';
@@ -65,7 +65,7 @@
                 <h2 class="font-semibold">Lo que hay en caja</h2>
                 <div class="grid gap-2">
                     <Label for="total_caja_final">Efectivo contado (incluye el fondo)</Label>
-                    <Input
+                    <InputDinero
                         id="total_caja_final"
                         inputmode="decimal"
                         autocomplete="off"
@@ -77,7 +77,7 @@
                 </div>
                 <div class="grid gap-2">
                     <Label for="total_tarjeta_real">Suma de vouchers de tarjeta</Label>
-                    <Input
+                    <InputDinero
                         id="total_tarjeta_real"
                         inputmode="decimal"
                         autocomplete="off"
@@ -89,7 +89,7 @@
                 </div>
                 <div class="grid gap-2">
                     <Label for="total_transferencia_real">Suma de comprobantes de transferencia</Label>
-                    <Input
+                    <InputDinero
                         id="total_transferencia_real"
                         inputmode="decimal"
                         autocomplete="off"

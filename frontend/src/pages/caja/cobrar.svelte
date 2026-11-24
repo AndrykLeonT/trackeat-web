@@ -5,7 +5,7 @@
     import PageTitle from '@/components/page-title.svelte';
     import Aviso from '@/components/caja/aviso.svelte';
     import Button from '@/components/ui/button.svelte';
-    import Input from '@/components/ui/input.svelte';
+    import InputDinero from '@/components/caja/input-dinero.svelte';
     import Label from '@/components/ui/label.svelte';
     import InputError from '@/components/input-error.svelte';
     import { centavos, deCentavos, dinero, entrega, estadosPedido, metodos } from '@/lib/caja';
@@ -126,12 +126,12 @@
                     <div class="grid gap-2 sm:grid-cols-2">
                         <div class="grid gap-2">
                             <Label for="monto">Monto (MXN)</Label>
-                            <Input id="monto" inputmode="decimal" autocomplete="off" required bind:value={$form.monto} />
+                            <InputDinero id="monto" inputmode="decimal" autocomplete="off" required bind:value={$form.monto} />
                             <InputError message={$form.errors.monto} />
                         </div>
                         <div class="grid gap-2">
                             <Label for="propina">Propina (aparte del monto)</Label>
-                            <Input id="propina" inputmode="decimal" autocomplete="off" placeholder="0.00" bind:value={$form.propina} />
+                            <InputDinero id="propina" inputmode="decimal" autocomplete="off" placeholder="0.00" bind:value={$form.propina} />
                             <InputError message={$form.errors.propina} />
                         </div>
                     </div>

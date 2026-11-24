@@ -14,7 +14,7 @@ Las migraciones de `backend/database/migrations/` son la definición ejecutable 
 | `items_pedido` | Relaciona pedido y producto; conserva cantidad, precio y estación al ordenar, además de notas. |
 | `pedidos_estacion` | Una fila única por pedido/estación; avance independiente de cada área. |
 | `historial_estados` | Registra pedido, estación, actor, estado anterior/nuevo y fecha. |
-| `cortes` | Apertura/cierre de caja; únicamente un corte abierto. |
+| `cortes` | Apertura/cierre de caja; un corte abierto por cajero (no abre otro sin cerrar el suyo). |
 | `pagos` | Relaciona pedido, cajero y corte; método, importe, propina y reembolso. |
 
 El avance de estación es `recibido → preparacion → listo → entregado`. El estado global sigue la estación más atrasada. `PedidoService` valida disponibilidad, calcula los precios y conserva historial dentro de una transacción. Los pedidos cancelados no avanzan.

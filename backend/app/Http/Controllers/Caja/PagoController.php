@@ -55,9 +55,9 @@ class PagoController extends Controller
     {
         $request->validate([
             'metodo_pago' => ['required', 'in:efectivo,tarjeta,transferencia'],
-            'monto' => ['required', 'string'],
-            'propina' => ['nullable', 'string'],
-        ]);
+            'monto' => $this->reglaDinero(),
+            'propina' => $this->reglaDinero(obligatorio: false),
+        ], $this->mensajesDinero(['monto', 'propina']));
         DomainAccess::requireRole($request->user(), ['cajero']);
         $corte = $this->corteDe($request->user());
         if (! $corte) {
