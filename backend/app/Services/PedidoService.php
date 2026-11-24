@@ -15,7 +15,6 @@ use App\Support\Money;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class PedidoService
@@ -26,7 +25,6 @@ class PedidoService
     {
         DomainAccess::requireRole($actor, ['cliente', 'mesero', 'cajero', 'administrador']);
         $data = Validator::make($data, [
-            'id_usuario' => ['required', 'integer'],
             'tipo_entrega' => ['required', 'in:para_llevar,comer_aqui'],
             'num_mesa' => ['nullable', 'integer', 'min:1', 'required_if:tipo_entrega,comer_aqui', 'prohibited_if:tipo_entrega,para_llevar'],
             'items' => ['required', 'array', 'min:1', 'max:100'],
@@ -36,22 +34,21 @@ class PedidoService
             'items.*.precio_confirmado' => ['sometimes', 'required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'client_request_id' => ['nullable', 'uuid'],
         ])->validate();
-        if ($actor->fresh()->rol === 'cliente' && (int) $data['id_usuario'] !== $actor->id) {
-            throw new AuthorizationException('Solo puede ordenar para su propia cuenta.');
-        }
 
         return DB::transaction(function () use ($data, $actor) {
             if (! empty($data['client_request_id'])) {
                 // Serialize retries of the same request, including simultaneous HTTP requests.
                 DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [$actor->id.':'.$data['client_request_id']]);
-                $existing = Pedido::where('id_usuario', $data['id_usuario'])->where('client_request_id', $data['client_request_id'])->first();
+                $existing = Pedido::where('id_usuario', $actor->id)->where('client_request_id', $data['client_request_id'])->first();
                 if ($existing) {
                     return $existing->load('items', 'estaciones');
                 }
             }
-            $client = User::whereKey($data['id_usuario'])->where('rol', 'cliente')->where('eliminado', false)->sharedLock()->first();
-            if (! $client) {
-                $this->invalid('id_usuario', 'Se requiere un cliente registrado y activo.');
+            // El dueño del pedido es siempre quien lo levanta: el cliente en la web o el personal que lo captura.
+            // Nadie puede registrarlo a nombre de otra cuenta ni vincular un cliente aparte.
+            $owner = User::whereKey($actor->id)->where('eliminado', false)->sharedLock()->first();
+            if (! $owner) {
+                throw new AuthorizationException('No tiene permiso para esta operación.');
             }
             $lines = [];
             $total = '0.00';
@@ -70,7 +67,8 @@ class PedidoService
                 $total = Money::add($total, Money::multiply($product->precio, $item['cantidad']));
             }
             Money::parse($total, 'total');
-            $pedido = Pedido::create(['id_usuario' => $client->id, 'numero_pedido' => 'TE-'.Str::ulid(),
+            // El folio se toma al final, con productos ya validados: el bloqueo de su fila dura hasta el commit.
+            $pedido = Pedido::create(['id_usuario' => $owner->id, 'numero_pedido' => $this->siguienteFolio(),
                 'tipo_entrega' => $data['tipo_entrega'], 'num_mesa' => $data['num_mesa'] ?? null, 'total' => $total,
                 'client_request_id' => $data['client_request_id'] ?? null, 'demo_room' => $actor->demo_room]);
             $pedido->items()->createMany($lines);
@@ -140,6 +138,23 @@ class PedidoService
 
             return $pedido->load('estaciones', 'historial');
         }, 3);
+    }
+
+    /**
+     * Folio consecutivo que reinicia cada día (`TE-AAAAMMDD-NNN`). El día es el de la zona del restaurante.
+     * El INSERT ... ON CONFLICT es atómico y deja la fila del día bloqueada hasta el commit, así que dos
+     * pedidos simultáneos (incluso en nodos distintos) nunca reciben el mismo número; si la transacción se
+     * revierte, el contador también, y no quedan huecos.
+     */
+    private function siguienteFolio(): string
+    {
+        $dia = now(config('trackeat.zona_folio'))->toDateString();
+        $numero = DB::selectOne(
+            'INSERT INTO folios_diarios (fecha, ultimo) VALUES (?, 1) ON CONFLICT (fecha) DO UPDATE SET ultimo = folios_diarios.ultimo + 1 RETURNING ultimo',
+            [$dia],
+        )->ultimo;
+
+        return sprintf('TE-%s-%03d', str_replace('-', '', $dia), $numero);
     }
 
     private function transition(User $actor, PedidoEstacion $station, string $state): void

@@ -13,6 +13,7 @@ class PedidoActualizado implements ShouldBroadcast, ShouldDispatchAfterCommit
 
     public array $backoff = [1, 2, 5, 10];
 
+    // `$userId` es quien levantó el pedido: un cliente (web) o el personal que lo capturó.
     public function __construct(public array $pedido, private int $userId, private ?string $room) {}
 
     public static function forOrder(Pedido $order): self

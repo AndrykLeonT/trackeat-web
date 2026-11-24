@@ -4,6 +4,7 @@
     import PageTitle from '@/components/page-title.svelte';
     import OrderChart from '@/components/OrderChart.svelte';
     import { api, session, connectLive, states, staffRoles } from '@/lib/trackeat';
+    import { formatoFolio } from '@/lib/folio';
     import ChartColumn from '@lucide/svelte/icons/chart-column';
 
     let orders = $state([]);
@@ -94,7 +95,7 @@
                 <ul class="mt-3 space-y-3" aria-live="polite">
                     {#each orders as order (order.id)}
                         <li class="flex flex-wrap justify-between gap-2 border-b border-border py-2 text-sm">
-                            <span class="break-all">{order.numero_pedido}</span>
+                            <span class="break-all">{formatoFolio(order.numero_pedido)}</span>
                             <strong>{states[order.estado]} · ${Number(order.total).toFixed(2)} MXN</strong>
                         </li>
                     {:else}

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { formatoFolio } from '../src/lib/folio.js';
 
 const base = process.env.TRACKEAT_TEST_URL;
 assert(base && new URL(base).port === '8005', 'Usa el servidor de trackeat_demo_test en puerto 8005.');
@@ -103,7 +104,7 @@ try {
     assert.equal(order.total, '49.50');
     results.push('Precio cambiado rechazado con 409, revisión pendiente persistente tras recarga y confirmación con total del servidor');
     await client.page.getByRole('link', { name: 'Ver seguimiento del pedido', exact: true }).click();
-    await client.page.getByRole('heading', { name: `Pedido ${order.numero_pedido}`, exact: true }).waitFor();
+    await client.page.getByRole('heading', { name: `Pedido ${formatoFolio(order.numero_pedido)}`, exact: true }).waitFor();
     const other = await login('cliente2@example.test');
     assert.equal((await other.context.request.get(`${base}/api/pedidos/${order.id}`)).status(), 404);
     assert.equal((await other.page.goto(`${base}/pedidos/${order.id}`)).status(), 404);

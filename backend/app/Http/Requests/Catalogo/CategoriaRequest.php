@@ -23,7 +23,7 @@ class CategoriaRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['nombre' => ['required', 'string', 'max:255', 'not_regex:/[\x00-\x1F\x7F]/u'], 'estacion' => ['required', Rule::in(['general', 'cocina', 'barra'])], 'disponible' => ['required', 'boolean']];
+        return ['nombre' => ['required', 'string', 'max:255', 'not_regex:/[\x00-\x1F\x7F]/u'], 'estacion' => ['required', Rule::in(['cocina', 'barra'])], 'disponible' => ['required', 'boolean']];
     }
 
     public function after(): array
