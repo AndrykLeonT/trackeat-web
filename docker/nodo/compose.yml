@@ -45,8 +45,8 @@ x-app: &app
     # Dirección del balanceador, o "*" para aceptar cualquier proxy directo.
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-*}
     # Captcha de Cloudflare Turnstile en registro y login. Por omisión, las llaves de PRUEBA públicas de
-    # Cloudflare (siempre pasan). Para producción, poner las llaves reales en docker/.env.
-    TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-1x00000000000000000000AA}
+    # Cloudflare: la del sitio obliga a resolver el reto y la secreta siempre acepta. Para producción, poner las llaves reales en docker/.env.
+    TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-3x00000000000000000000FF}
     TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-1x0000000000000000000000000000000AA}
 
 services:
