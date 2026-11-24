@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Rules\Turnstile;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('auth/register');
+        return Inertia::render('auth/register', ['turnstileSiteKey' => Turnstile::llaveDelSitio()]);
     }
 
     /**
@@ -36,6 +37,9 @@ class RegisteredUserController extends Controller
         if ($request->filled('website')) {
             throw ValidationException::withMessages(['email' => 'No se pudo completar el registro. Intenta de nuevo.']);
         }
+
+        // Captcha primero: sin él no se revisa nada más (por ejemplo, si el correo ya existe).
+        $request->validate([Turnstile::CAMPO => Turnstile::reglas()], [Turnstile::CAMPO.'.required' => Turnstile::MENSAJE]);
 
         $request->validate([
             'name' => 'required|string|max:255',
