@@ -33,7 +33,8 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('home', absolute: false));
+        // Después de iniciar sesión se entra al panel; si venía de una página protegida, regresa a ella.
+        return redirect()->intended(route('dashboard', absolute: false));
     }
 
     /**

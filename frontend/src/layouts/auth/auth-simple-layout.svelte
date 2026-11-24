@@ -1,6 +1,6 @@
 <script>
-    import AppLogoIcon from '@/components/app-logo-icon.svelte';
     import { Link } from '@inertiajs/svelte';
+    import logo from '@/assets/images/logo.png';
 
     let { children, title = '', description = '' } = $props();
 </script>
@@ -10,9 +10,7 @@
         <div class="flex flex-col gap-8">
             <div class="flex flex-col items-center gap-4">
                 <Link href={route('home')} class="flex flex-col items-center gap-2 font-medium">
-                    <div class="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
-                        <AppLogoIcon class="size-9 fill-current text-foreground" />
-                    </div>
+                    <img src={logo} alt="TrackEat" class="mb-1 h-12 w-auto object-contain" />
                     <span class="sr-only">{title}</span>
                 </Link>
 
