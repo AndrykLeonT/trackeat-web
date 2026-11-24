@@ -31,6 +31,12 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // Campo trampa (Práctica 6, medida 3): una persona no lo ve; si llega con texto, lo llenó un bot.
+        // El mensaje es genérico para no avisarle al bot que cayó en la trampa.
+        if ($request->filled('website')) {
+            throw ValidationException::withMessages(['email' => 'No se pudo completar el registro. Intenta de nuevo.']);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,

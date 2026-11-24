@@ -52,21 +52,29 @@
                 <li><a href="#por-que-usar" class="hover:text-foreground transition-colors">Por qué usar TrackEat</a></li>
                 <li><a href="#nosotros" class="hover:text-foreground transition-colors">Acerca de nosotros</a></li>
             </ul>
-            <a
-                href="/dashboard"
-                class="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
-            >
-                Ir al Dashboard
-            </a>
+            <div class="flex items-center gap-2">
+                <a
+                    href="/login"
+                    class="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-accent transition-colors"
+                >
+                    Iniciar sesión
+                </a>
+                <a
+                    href="/register"
+                    class="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+                >
+                    Crear cuenta
+                </a>
+            </div>
         </nav>
 
         <!-- Botones en Móvil -->
         <div class="flex items-center gap-2 md:hidden">
             <a
-                href="/dashboard"
+                href="/login"
                 class="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
             >
-                Dashboard
+                Iniciar sesión
             </a>
             <button
                 type="button"
@@ -116,13 +124,20 @@
                             Acerca de nosotros
                         </a>
                     </li>
-                    <li class="pt-2 border-t border-border">
+                    <li class="pt-2 border-t border-border flex flex-col gap-2">
                         <a
-                            href="/dashboard"
+                            href="/login"
+                            onclick={() => (isLandingMenuOpen = false)}
+                            class="flex w-full items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-accent transition-colors"
+                        >
+                            Iniciar sesión
+                        </a>
+                        <a
+                            href="/register"
                             onclick={() => (isLandingMenuOpen = false)}
                             class="flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors"
                         >
-                            Ingresar al Sistema
+                            Crear cuenta
                         </a>
                     </li>
                 </ul>

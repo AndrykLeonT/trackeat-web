@@ -15,6 +15,8 @@
         email: '',
         password: '',
         password_confirmation: '',
+        // Campo trampa: una persona nunca lo llena. Si llega con texto, lo llenó un bot.
+        website: '',
     });
 
     function submit(e) {
@@ -58,6 +60,13 @@
                     placeholder="email@example.com"
                 />
                 <InputError message={$form.errors.email} />
+            </div>
+
+            <!-- Campo trampa (honeypot): fuera de la pantalla en lugar de display:none, porque
+                 algunos bots se saltan los campos ocultos. Ni el teclado ni un lector de pantalla llegan a él. -->
+            <div class="absolute -left-[9999px] h-px w-px overflow-hidden" aria-hidden="true">
+                <label for="website">No llenes este campo</label>
+                <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" bind:value={$form.website} />
             </div>
 
             <div class="grid gap-2">
