@@ -14,7 +14,8 @@ Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    // Límite de intentos (Práctica 6): se revisa antes del captcha y del controlador.
+    Route::post('register', [RegisteredUserController::class, 'store'])->middleware('throttle:registro');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
