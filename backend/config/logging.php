@@ -1,5 +1,6 @@
 <?php
 
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -51,6 +52,15 @@ return [
     */
 
     'channels' => [
+        'security' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/security.jsonl'),
+            'level' => 'info',
+            'days' => 30,
+            'permission' => 0600,
+            'formatter' => JsonFormatter::class,
+            'replace_placeholders' => false,
+        ],
 
         'stack' => [
             'driver' => 'stack',

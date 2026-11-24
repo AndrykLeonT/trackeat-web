@@ -32,7 +32,8 @@ class PedidoService
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*.id_producto' => ['required', 'integer'],
             'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:10000'],
-            'items.*.notas' => ['nullable', 'string', 'max:1000'],
+            'items.*.notas' => ['nullable', 'string', 'max:1000', 'not_regex:/\x00/u'],
+            'items.*.precio_confirmado' => ['sometimes', 'required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'client_request_id' => ['nullable', 'uuid'],
         ])->validate();
         if ($actor->fresh()->rol === 'cliente' && (int) $data['id_usuario'] !== $actor->id) {
@@ -63,6 +64,7 @@ class PedidoService
                 if (! $product || $product->eliminado || ! $product->disponible || ! $category || $category->eliminado || ! $category->disponible) {
                     $this->invalid('items', 'Uno de los productos no está disponible.');
                 }
+                abort_if(isset($item['precio_confirmado']) && bccomp((string) $item['precio_confirmado'], $product->precio, 2) !== 0, 409, 'Cambió el precio. Actualice el menú y revise el carrito.');
                 $lines[] = ['id_producto' => $product->id, 'cantidad' => $item['cantidad'],
                     'precio_unitario' => $product->precio, 'estacion' => $category->estacion, 'notas' => $item['notas'] ?? null];
                 $total = Money::add($total, Money::multiply($product->precio, $item['cantidad']));

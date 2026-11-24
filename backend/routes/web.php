@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
+Route::pattern('pedido', '[0-9]{1,18}');
+
 Route::get('/', function () {
     return Inertia::render('public/landing');
 })->name('home');
@@ -31,10 +33,10 @@ Route::get('/menu', fn () => new RedirectResponse('/menu/'))->name('menu');
 
 Route::get('/demo/{room}', [DemoController::class, 'enter'])->middleware(['signed', 'throttle:120,1'])->name('demo.enter');
 Route::prefix('api')->group(function () {
-    Route::get('catalogo', [TrackEatController::class, 'catalogo']);
     Route::get('sesion', [TrackEatController::class, 'sesion']);
     Route::middleware(['auth', ActiveTrackEatUser::class])->group(function () {
         Route::get('pedidos', [TrackEatController::class, 'pedidos']);
+        Route::get('pedidos/{pedido}', [TrackEatController::class, 'detalle']);
         Route::post('pedidos', [TrackEatController::class, 'crear'])->middleware('throttle:60,1');
         Route::patch('pedidos/{pedido}/estacion', [TrackEatController::class, 'avanzar'])->middleware('throttle:120,1');
         Route::get('tablero', [TrackEatController::class, 'tablero']);
@@ -59,4 +61,6 @@ Route::get('/metricas', function () {
 })->name('metricas');
 
 require __DIR__.'/auth.php';
+require __DIR__.'/catalogo.php';
 require __DIR__.'/caja.php';
+Route::get('/pedidos/{pedido}', [TrackEatController::class, 'paginaPedido'])->middleware(['auth', ActiveTrackEatUser::class]);

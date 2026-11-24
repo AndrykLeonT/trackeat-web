@@ -9,13 +9,16 @@
     import LogOut from '@lucide/svelte/icons/log-out';
     import ExternalLink from '@lucide/svelte/icons/external-link';
     import Users from '@lucide/svelte/icons/users';
+    import Package from '@lucide/svelte/icons/package';
+    import Tags from '@lucide/svelte/icons/tags';
     import Banknote from '@lucide/svelte/icons/banknote';
     import Wallet from '@lucide/svelte/icons/wallet';
     import Lock from '@lucide/svelte/icons/lock';
     import Receipt from '@lucide/svelte/icons/receipt';
     import Eraser from '@lucide/svelte/icons/eraser';
 
-    let { onNavigate = null, nativeNavigation = false, currentUrl = null } = $props();
+    let { onNavigate = null, nativeNavigation = false, currentUrl = null, userRole = null } = $props();
+    const role = $derived(userRole ?? $page?.props?.auth?.user?.rol);
 
     // Secciones organizadas de los módulos de TrackEat
     const navigationSections = [
@@ -67,13 +70,29 @@
                 { name: 'Purga', href: '/admin/purga', icon: Eraser, roles: ['administrador'] },
             ],
         },
+        {
+            title: 'Administración',
+            items: [
+                {
+                    name: 'Productos',
+                    href: '/admin/productos',
+                    icon: Package,
+                    roles: ['administrador'],
+                },
+                {
+                    name: 'Categorías',
+                    href: '/admin/categorias',
+                    icon: Tags,
+                    roles: ['administrador'],
+                },
+            ],
+        },
     ];
 
     // Los enlaces sin `roles` los ven todos; las secciones que se quedan vacías no se muestran.
     let visibleSections = $derived.by(() => {
-        const rol = $page?.props?.auth?.user?.rol;
         return navigationSections
-            .map((section) => ({ ...section, items: section.items.filter((item) => !item.roles || item.roles.includes(rol)) }))
+            .map((section) => ({ ...section, items: section.items.filter((item) => !item.roles || item.roles.includes(role)) }))
             .filter((section) => section.items.length > 0);
     });
 
@@ -144,12 +163,7 @@
                             }`}
                             <li>
                                 {#if nativeNavigation || item.offlineCatalog}
-                                    <a
-                                        href={nativeNavigation && item.offlineCatalog ? './' : item.href}
-                                        onclick={handleNavClick}
-                                        aria-current={active ? 'page' : undefined}
-                                        class={navClass}
-                                    >
+                                    <a href={item.href} onclick={handleNavClick} aria-current={active ? 'page' : undefined} class={navClass}>
                                         {@render navContent(item, active)}
                                     </a>
                                 {:else}
