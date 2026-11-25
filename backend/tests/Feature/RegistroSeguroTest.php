@@ -32,6 +32,18 @@ class RegistroSeguroTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'persona@example.test']);
     }
 
+    public function test_el_correo_repetido_no_se_revela(): void
+    {
+        User::factory()->create(['email' => 'persona@example.test']);
+
+        $this->from('/register')->post('/register', $this->datos())
+            ->assertRedirect('/register')
+            ->assertSessionHasErrors(['email' => 'No se pudo completar el registro. Intenta de nuevo.']);
+
+        $this->assertGuest();
+        $this->assertSame(1, User::where('email', 'persona@example.test')->count());
+    }
+
     public function test_el_sexto_intento_de_registro_en_un_minuto_se_bloquea(): void
     {
         $mensaje = 'Demasiados intentos de registro. Espera un minuto e inténtalo de nuevo.';

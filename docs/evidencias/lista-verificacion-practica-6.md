@@ -2,12 +2,12 @@
 
 Ejecución del 25 de noviembre de 2026 contra TrackEat en Docker (`https://localhost:8443`), con cuentas `@example.test`. Las evidencias completas están en [Evidencias-Practica-6.pdf](Evidencias-Practica-6.pdf). La columna **Figura** indica dónde está cada una en el PDF.
 
-**Resultado:** 12 medidas cumplen y 2 son parciales (2 y 14). Las dos parciales están documentadas con su mitigación.
+**Resultado:** 13 medidas cumplen y 1 es parcial (14), documentada con su mitigación.
 
 | # | Medida | Estado | Implementación | Cómo se comprueba en vivo | Figura |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Contraseñas derivadas (bcrypt) | ✅ Cumple | `User.php:53` cast `hashed`, `BCRYPT_ROUNDS=12` | `psql`: el hash empieza con `$2y$12$` y mide 60 | 1 |
-| 2 | Error genérico en el login | ⚠️ Parcial | `LoginRequest.php:59` usa un solo mensaje `auth.failed` | Login con un correo inexistente y con uno real con clave mala: el mensaje es el mismo. El registro sí dice «The email has already been taken.» | 2, 3, 4 |
+| 2 | Error genérico en login y registro | ✅ Cumple | `LoginRequest.php:59` usa un solo mensaje `auth.failed`; `RegisteredUserController.php` no revela correos repetidos | Login con un correo inexistente y con uno real con clave mala: el mensaje es el mismo. Registro con un correo existente → «No se pudo completar el registro. Intenta de nuevo.» | 2, 3, 4 |
 | 3 | Captcha y campo trampa | ✅ Cumple | `Rules/Turnstile.php`, campo `website` en el registro | Login sin token → «Confirma que no eres un robot.» Registro con la trampa llena → rechazado | 5, 6, 7 |
 | 4 | Límite de intentos | ✅ Cumple | `LoginRequest.php:56-82` (5 por correo+IP), limitador `registro` (5/min por IP) | Al 6.º intento: «Too many login attempts…» y «Demasiados intentos de registro…» con `Retry-After` | 8, 9 |
 | 5 | Cookies de sesión | ✅ Cumple | `config/session.php:172,185,202` | `Set-Cookie: trackeat_session` con `secure; httponly; samesite=lax` | 10 |
@@ -21,14 +21,13 @@ Ejecución del 25 de noviembre de 2026 contra TrackEat en Docker (`https://local
 | 13 | La CSP bloquea un script | ✅ Cumple | CSP sin `'unsafe-inline'` | Un `<script>` en línea inyectado queda bloqueado (`script-src-elem`) y `window.__pruebaCsp` sigue `undefined` | 21 |
 | 14 | Debug apagado y secretos locales | ⚠️ Parcial | `docker/nodo/compose.yml:20` `APP_DEBUG: "false"`, `.gitignore` | `config('app.debug')` = false. `git check-ignore` cubre los `.env` y los `*.pem` | 22, 23 |
 
-## Medidas parciales
+## Medida parcial
 
-- **M2 · Registro.** El formulario de registro revela que un correo ya existe. Para enumerar cuentas así habría que pasar primero el captcha (M3) y respetar el límite de 5 registros por minuto por IP (M4), así que no se puede automatizar. Los mensajes de autenticación siguen en inglés.
 - **M14 · Entorno.** Los nodos de Docker tienen debug apagado, pero heredan `APP_ENV=local`. Además, el `backend/.env` de desarrollo tiene `APP_DEBUG=true`. Para producción hay que poner `APP_ENV=production` en `docker/nodo/compose.yml`.
 
 ## Pruebas automatizadas (Anexo A del PDF, figuras 24 y 25)
 
-Las pruebas de seguridad pasan: `CaptchaTest`, `RegistroSeguroTest`, `CatalogoSecurityTest`, `CajaModuloTest`, `SecurityIntegrationReviewTest` y `SaludTest`. La suite completa también pasa, sin fallas, con este comando:
+Las pruebas de seguridad pasan: `CaptchaTest`, `RegistroSeguroTest`, `CatalogoSecurityTest`, `CajaModuloTest`, `SecurityIntegrationReviewTest` y `SaludTest`. La suite completa se corre con este comando. Da 201 pruebas que pasan y 1 que falla: `test_la_lista_se_pagina_de_20_en_20_sin_consultas_por_fila`, del módulo de administración de pedidos, que no tiene relación con las medidas de seguridad.
 
 ```powershell
 docker exec -e DB_DATABASE=trackeat_test -e APP_ENV=testing -e MAIL_MAILER=array trackeat-nodo1 php artisan test
