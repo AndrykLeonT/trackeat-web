@@ -103,7 +103,8 @@ try {
     const order = await orderResponse.json();
     assert.equal(order.total, '49.50');
     results.push('Precio cambiado rechazado con 409, revisión pendiente persistente tras recarga y confirmación con total del servidor');
-    await client.page.getByRole('link', { name: 'Ver seguimiento del pedido', exact: true }).click();
+    // HU-02: al confirmar, el menú lleva directo a la página del pedido.
+    await client.page.waitForURL(`${base}/pedidos/${order.id}`);
     await client.page.getByRole('heading', { name: `Pedido ${formatoFolio(order.numero_pedido)}`, exact: true }).waitFor();
     const other = await login('cliente2@example.test');
     assert.equal((await other.context.request.get(`${base}/api/pedidos/${order.id}`)).status(), 404);

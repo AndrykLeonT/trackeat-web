@@ -157,7 +157,8 @@ class TrackEatTest extends TestCase
         $id = $this->order('DEMO-001')->id;
         $this->pedidos->avanzar($this->cocinero, $id, 'cocina', 'preparacion');
         $this->pedidos->avanzar($this->cocinero, $id, 'cocina', 'listo');
-        $this->assertSame('entregado', $this->pedidos->avanzar($this->mesero, $id, 'cocina', 'entregado')->estado);
+        // La entrega es por pedido completo (HU-09); con una sola estación, basta con que esa esté lista.
+        $this->assertSame('entregado', $this->pedidos->entregar($this->mesero, $id)->estado);
         $this->assertSame(1, $this->order('DEMO-001')->estaciones()->count());
     }
 
@@ -194,9 +195,9 @@ class TrackEatTest extends TestCase
     public function test_cancellation_requires_refund_and_cancels_all_stations(): void
     {
         $order = $this->order('DEMO-002');
-        $this->rejected(fn () => $this->pedidos->cancelar($this->mesero, $order->id));
+        $this->rejected(fn () => $this->pedidos->cancelar($this->mesero, $order->id, 'Cliente se retiró'));
         $this->caja->reembolsar($this->cajero, $order->pagos()->first()->id);
-        $cancelled = $this->pedidos->cancelar($this->mesero, $order->id);
+        $cancelled = $this->pedidos->cancelar($this->mesero, $order->id, 'Cliente se retiró');
         $this->assertSame(['cancelado'], $cancelled->estaciones->pluck('estado')->unique()->values()->all());
         $this->rejected(fn () => $this->pedidos->avanzar($this->cocinero, $order->id, 'cocina', 'listo'));
         $this->rejected(fn () => $this->caja->cobrar($this->cajero, $order->id, $this->open()->id, 'efectivo', '1'));

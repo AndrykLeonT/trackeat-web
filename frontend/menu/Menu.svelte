@@ -36,7 +36,6 @@
     let selectedImage = $state(0);
     let cartChanges = $state([]);
     let needsReview = $state(false);
-    let confirmedOrder = $state(null);
     let lastUpdated = $state('');
     let error = $state('');
     let message = $state('');
@@ -45,6 +44,33 @@
     const total = $derived(cart.items.reduce((sum, item) => sum + item.cantidad * Number(item.precio), 0));
     const overLimit = $derived(total > Number(limites.total_max));
     const activeUser = $derived(user && (!user.demo_expires_at || Date.parse(user.demo_expires_at) > Date.now()));
+    // HU-08: el personal (salvo el cocinero) también captura pedidos aquí; quedan a su nombre (lo fija el servidor).
+    const rolesPersonal = { mesero: 'Mesero', cajero: 'Cajero', administrador: 'Administrador' };
+    const personal = $derived(user?.rol in rolesPersonal);
+    const puedeOrdenar = $derived(user?.rol === 'cliente' || personal);
+    // Último pedido capturado por el personal: se queda en el menú para capturar el siguiente.
+    let confirmacion = $state(null);
+    function entregaPorDefecto() {
+        return user?.rol === 'mesero' ? 'comer_aqui' : 'para_llevar';
+    }
+    // Carrito nuevo de quien tiene la sesión, con la entrega habitual de su rol (mesero: mesa; cajero: teléfono).
+    function nuevoCarrito() {
+        return { ...emptyCart(), owner: user?.id ?? null, tipo_entrega: entregaPorDefecto() };
+    }
+    // El carrito vive en el navegador (IndexedDB), no en la cuenta: en un equipo compartido, el carrito de otra
+    // persona se descarta en vez de heredarse. Uno sin dueño (anterior a este cambio) se adopta una vez.
+    async function adoptarCarrito() {
+        if (!user) return;
+        if (cart.owner != null && cart.owner !== user.id) {
+            cart = nuevoCarrito();
+            needsReview = false;
+            cartChanges = [];
+        } else {
+            cart.owner = user.id;
+            if (!cart.items.length && !cart.pending) cart.tipo_entrega = entregaPorDefecto();
+        }
+        await persist();
+    }
     let searchVersion = 0;
 
     async function openDetail(id, push = true) {
@@ -130,6 +156,7 @@
             const data = await session();
             user = data.user;
             if (data.limites) limites = data.limites;
+            await adoptarCarrito();
             status(user ? 'Conectado al servidor' : 'Inicia sesión para pedir', !!user);
         } catch (e) {
             error = `Se conserva el catálogo local. ${e.message}`;
@@ -205,10 +232,12 @@
     }
     async function send(event) {
         event.preventDefault();
-        if (!online || !activeUser || !cart.items.length || overLimit || busy || needsReview || cart.items.some((item) => item.unavailable)) return;
+        if (!online || !activeUser || !puedeOrdenar || !cart.items.length || overLimit || busy || needsReview || cart.items.some((item) => item.unavailable))
+            return;
         busy = true;
         error = '';
         message = '';
+        confirmacion = null;
         try {
             // Persist the exact request before sending. A lost response can safely be retried.
             cart.requestId ||= crypto.randomUUID();
@@ -228,12 +257,18 @@
                     })),
                 },
             });
-            cart = emptyCart();
+            cart = nuevoCarrito();
             await persist();
-            message = `Pedido confirmado: ${formatoFolio(order.numero_pedido)}. Total: $${Number(order.total).toFixed(2)} MXN.`;
-            confirmedOrder = order.id;
             needsReview = false;
             cartChanges = [];
+            if (personal) {
+                // HU-08: el personal se queda en el menú, con el carrito vacío, listo para el siguiente pedido.
+                confirmacion = { id: order.id, folio: formatoFolio(order.numero_pedido), mesa: order.num_mesa };
+                return;
+            }
+            message = `Pedido confirmado: ${formatoFolio(order.numero_pedido)}. Abriendo el seguimiento…`;
+            // HU-02: el carrito vacío ya quedó guardado; un reintento devolvería este mismo pedido.
+            location.assign(`/pedidos/${order.id}`);
         } catch (e) {
             if ([401, 403, 409, 422, 429].includes(e.status)) {
                 cart.pending = false;
@@ -253,7 +288,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
             <div>
                 <h1 class="flex items-center gap-2 text-2xl font-bold"><Utensils class="size-6 text-primary" />Menú Digital</h1>
-                <p class="mt-1 text-sm text-muted-foreground">Elige tus productos y confirma tu pedido. Consulta su seguimiento en Comandas.</p>
+                <p class="mt-1 text-sm text-muted-foreground">Elige tus productos y confirma tu pedido. Consulta su seguimiento en Mis pedidos.</p>
             </div>
             {#if user}<p class="text-sm">{user.name}</p>{:else}<a
                     href="/login"
@@ -279,7 +314,6 @@
                 Sin conexión: puedes consultar el menú y preparar tu carrito. Confirma el envío cuando vuelva la red.
             </p>{/if}
         <p role="status" class="break-words text-sm text-primary">{message}</p>
-        {#if confirmedOrder}<a href={`/pedidos/${confirmedOrder}`} class="font-semibold text-primary">Ver seguimiento del pedido</a>{/if}
         {#if error}<p role="alert" class="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm">{error}</p>{/if}
         <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
             <section aria-label="Catálogo de productos" class="min-w-0 space-y-4">
@@ -394,7 +428,16 @@
                 </div>
             </section>
             <section aria-labelledby="cart-title" class="min-w-0 self-start rounded-2xl border border-border bg-card p-5 shadow-xs">
-                <h2 id="cart-title" class="text-lg font-bold">Tu carrito</h2>
+                <h2 id="cart-title" class="text-lg font-bold">{personal ? 'Nuevo pedido' : 'Tu carrito'}</h2>
+                {#if personal}<p class="mt-2 rounded-lg bg-muted px-3 py-2 text-xs" data-testid="modo-captura">
+                        Capturando como <strong>{rolesPersonal[user.rol]}</strong> · el pedido quedará a tu nombre.
+                    </p>{/if}
+                {#if confirmacion}<div role="status" class="mt-3 rounded-xl border border-emerald-600/30 bg-emerald-600/10 p-3 text-sm text-emerald-800 dark:text-emerald-300">
+                        <p class="font-semibold">
+                            Pedido {confirmacion.folio}{confirmacion.mesa ? ` · Mesa ${confirmacion.mesa}` : ' · Para llevar'} confirmado.
+                        </p>
+                        <a href={`/pedidos/${confirmacion.id}`} class="font-semibold underline underline-offset-4">Ver seguimiento</a>
+                    </div>{/if}
                 {#if cartChanges.length}<div role="status" class="mt-3 space-y-2 rounded-xl bg-muted p-3 text-sm">
                         <p class="font-semibold">Revisa los cambios del menú</p>
                         {#each cartChanges as change, index (index)}<p>{change}</p>{/each}{#if needsReview}<button
@@ -457,15 +500,13 @@
                             El pedido supera el máximo de ${Number(limites.total_max).toFixed(2)} MXN. Quita productos o divídelo en varios pedidos.
                         </p>{/if}
                     <p class="text-xs text-muted-foreground">El servidor verifica disponibilidad y precios al confirmar.</p>
-                    {#if user && user.rol !== 'cliente'}<p class="text-sm">
-                            Para pedir, usa una cuenta cliente o el enlace de demostración en otro navegador.
-                        </p>{/if}
+                    {#if user && !puedeOrdenar}<p class="text-sm">Los cocineros no capturan pedidos.</p>{/if}
                     <button
                         type="submit"
                         disabled={!initialized ||
                             !online ||
                             !activeUser ||
-                            user?.rol !== 'cliente' ||
+                            !puedeOrdenar ||
                             !cart.items.length ||
                             overLimit ||
                             busy ||

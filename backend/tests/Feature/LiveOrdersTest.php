@@ -99,7 +99,9 @@ class LiveOrdersTest extends TestCase
         $this->patchJson($url, ['estacion' => 'cocina', 'estado' => 'preparacion'])->assertOk()->assertJsonPath('estado', 'preparacion');
         $this->patchJson($url, ['estacion' => 'cocina', 'estado' => 'listo'])->assertOk();
         $this->patchJson($url, ['estacion' => 'cocina', 'estado' => 'entregado'])->assertForbidden();
-        $this->actingAs($this->user('mesero'))->patchJson($url, ['estacion' => 'cocina', 'estado' => 'entregado'])->assertOk();
+        // La entrega es por pedido completo (HU-09): ni el mesero entrega una estación suelta.
+        $this->actingAs($this->user('mesero'))->patchJson($url, ['estacion' => 'cocina', 'estado' => 'entregado'])->assertForbidden();
+        $this->actingAs($this->user('mesero'))->postJson('/api/pedidos/'.$order->id.'/entregar')->assertOk()->assertJsonPath('estado', 'entregado');
         $this->getJson('/api/tablero')->assertOk()->assertJsonPath('estados.entregado', 2);
     }
 

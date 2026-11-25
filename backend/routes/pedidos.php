@@ -15,7 +15,13 @@ Route::prefix('api')->middleware(['auth', ActiveTrackEatUser::class])->group(fun
     Route::get('pedidos/{pedido}', [PedidoController::class, 'detalle']);
     Route::post('pedidos', [PedidoController::class, 'crear'])->middleware('throttle:60,1');
     Route::patch('pedidos/{pedido}/estacion', [PedidoController::class, 'avanzar'])->middleware('throttle:120,1');
+    Route::post('pedidos/{pedido}/cancelar', [PedidoController::class, 'cancelar'])->middleware('throttle:30,1');
+    Route::post('pedidos/{pedido}/entregar', [PedidoController::class, 'entregar'])->middleware('throttle:120,1');
+    Route::get('mesero/pedidos', [PedidoController::class, 'porEntregar']);
     Route::get('tablero', [PedidoController::class, 'tablero']);
+    Route::get('comandas', [PedidoController::class, 'comandas']);
 });
 
 Route::get('/pedidos/{pedido}', [PedidoController::class, 'paginaPedido'])->middleware(['auth', ActiveTrackEatUser::class]);
+Route::get('/mesero/pedidos', [PedidoController::class, 'paginaPorEntregar'])->middleware(['auth', ActiveTrackEatUser::class])->name('mesero.pedidos');
+Route::get('/mis-pedidos',[PedidoController::class, 'misPedidos'])->middleware(['auth', ActiveTrackEatUser::class])->name('mis-pedidos');

@@ -16,6 +16,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PedidoService
@@ -128,19 +129,54 @@ class PedidoService
         }, 3);
     }
 
-    public function cancelar(User $actor, int $pedidoId): Pedido
+    // HU-09. La entrega es todo o nada: solo cuando TODAS las estaciones están listas, y todas pasan juntas a
+    // `entregado` en una transacción (cada una queda en el historial con quién la entregó).
+    public function entregar(User $actor, int $pedidoId): Pedido
     {
-        DomainAccess::requireRole($actor, ['cliente', 'mesero', 'cajero', 'administrador']);
+        DomainAccess::requireRole($actor, ['mesero', 'cajero', 'administrador']);
+        $actor = $actor->fresh();
 
         return DB::transaction(function () use ($actor, $pedidoId) {
+            $pedido = Pedido::lockForUpdate()->findOrFail($pedidoId);
+            Gate::forUser($actor)->authorize('entregar', $pedido);
+            $this->active($pedido);
+            if ($pedido->estado === 'entregado') {
+                $this->invalid('estado', 'El pedido ya se entregó.');
+            }
+            $estaciones = $pedido->estaciones()->orderBy('id')->lockForUpdate()->get();
+            if ($estaciones->isEmpty() || $estaciones->contains(fn (PedidoEstacion $e) => $e->estado !== 'listo')) {
+                $this->invalid('estado', 'El pedido todavía no está listo: todas sus estaciones deben estar listas.');
+            }
+            foreach ($estaciones as $estacion) {
+                $this->transition($actor, $estacion, 'entregado');
+            }
+            $pedido->update(['estado' => 'entregado']);
+            event(PedidoActualizado::forOrder($pedido));
+
+            return $pedido->load('estaciones', 'historial');
+        }, 3);
+    }
+
+    // HU-05. El cliente cancela sin motivo (se guarda `motivo_cliente`); el personal debe elegir uno de la lista.
+    public function cancelar(User $actor, int $pedidoId, ?string $motivo = null): Pedido
+    {
+        DomainAccess::requireRole($actor, ['cliente', 'mesero', 'cajero', 'administrador']);
+        $actor = $actor->fresh();
+        if ($actor->rol === 'cliente') {
+            $motivo = config('trackeat.pedidos.motivo_cliente');
+        } else {
+            Validator::make(['motivo' => $motivo], ['motivo' => ['required', 'string', Rule::in(config('trackeat.pedidos.motivos_cancelacion'))]],
+                ['motivo.required' => 'Elige el motivo de la cancelación.', 'motivo.in' => 'Elige un motivo de la lista.'])->validate();
+        }
+
+        return DB::transaction(function () use ($actor, $pedidoId, $motivo) {
             // Mismo orden que cobros/correcciones: pedido -> corte -> pago.
             $pedido = Pedido::lockForUpdate()->findOrFail($pedidoId);
+            Gate::forUser($actor)->authorize('cancelar', $pedido);
             $this->active($pedido);
-            if ($actor->fresh()->rol === 'cliente' && $pedido->id_usuario !== $actor->id) {
-                throw new AuthorizationException;
-            }
-            if ($pedido->estado === 'entregado') {
-                $this->invalid('estado', 'No puede cancelar un pedido entregado.');
+            // Basta con una estación entregada: ya no se puede deshacer la entrega.
+            if ($pedido->estaciones()->where('estado', 'entregado')->exists()) {
+                $this->invalid('estado', 'No puede cancelar un pedido que ya se entregó.');
             }
             $cortes = Corte::whereIn('id', $pedido->pagos()->select('id_corte'))->orderBy('id')->lockForUpdate()->get();
             if ($cortes->contains('estado', 'cerrado') || $pedido->pagos()->activos()->where('reembolso', false)->exists()) {
@@ -149,7 +185,7 @@ class PedidoService
             foreach ($pedido->estaciones()->orderBy('id')->lockForUpdate()->get() as $station) {
                 $this->transition($actor, $station, 'cancelado');
             }
-            $pedido->update(['estado' => 'cancelado']);
+            $pedido->update(['estado' => 'cancelado', 'motivo_cancelacion' => $motivo]);
             event(PedidoActualizado::forOrder($pedido));
 
             return $pedido->load('estaciones', 'historial');
