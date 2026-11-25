@@ -3,7 +3,10 @@ import './css/app.css';
 import { createInertiaApp } from '@inertiajs/svelte';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { mount } from 'svelte';
+import { route } from 'ziggy-js';
 import { initializeTheme } from './lib/appearance';
+
+globalThis.route = route;
 
 createInertiaApp({
     resolve: (name) => resolvePageComponent(`./pages/${name}.svelte`, import.meta.glob('./pages/**/*.svelte')),
@@ -11,7 +14,7 @@ createInertiaApp({
         mount(App, { target: el, props });
     },
     progress: {
-        color: '#4B5563',
+        includeCSS: false,
     },
 });
 

@@ -156,3 +156,16 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Inertia usa el CSS compilado para mantener el indicador bajo la CSP. */
+#nprogress {
+    pointer-events: none;
+}
+
+#nprogress .bar {
+    position: fixed;
+    z-index: 1031;
+    inset: 0 0 auto;
+    height: 2px;
+    background: #4b5563;
+}

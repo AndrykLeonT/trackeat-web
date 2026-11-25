@@ -26,6 +26,21 @@ map $http_upgrade $connection_upgrade {
     ''      close;
 }
 
+map "${URL_PUBLICA}" $trackeat_wss_origin {
+    "~^https://(?<trackeat_public_authority>[^/]+)$" "wss://$trackeat_public_authority";
+    default "";
+}
+
+map $upstream_http_referrer_policy $trackeat_referrer_policy {
+    "no-referrer" no-referrer;
+    default strict-origin-when-cross-origin;
+}
+
+map $uri $trackeat_app_node {
+    ~^/app "";
+    default $upstream_addr;
+}
+
 server {
     listen 80 default_server;
     server_name _;
@@ -40,6 +55,15 @@ server {
     ssl_certificate /etc/nginx/trackeat-tls/server.pem;
     ssl_certificate_key /etc/nginx/trackeat-tls/server-key.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
+
+    add_header Content-Security-Policy "default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' https://fonts.bunny.net; font-src 'self' https://fonts.bunny.net; img-src 'self' data: blob:; connect-src 'self' $trackeat_wss_origin; frame-src https://challenges.cloudflare.com; worker-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'" always;
+    add_header Strict-Transport-Security "max-age=300" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy $trackeat_referrer_policy always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    # Se conserva el diagnóstico del nodo de Laravel sin alterar la herencia de las cabeceras.
+    add_header X-Nodo $trackeat_app_node always;
 
     # El navegador pide el icono en cada recarga y se come un turno.
     location = /favicon.ico { return 204; }
@@ -66,12 +90,11 @@ server {
         proxy_set_header X-Forwarded-Host  "";
         proxy_set_header X-Forwarded-Port  "";
         proxy_set_header X-Forwarded-Prefix "";
+        proxy_hide_header Referrer-Policy;
 
         proxy_next_upstream error timeout http_502 http_503 http_504;
         # Si un nodo se apaga, su IP deja de contestar; sin esto Nginx espera 60 s antes de probar el otro.
         proxy_connect_timeout 2s;
 
-        # Para comprobar el reparto: en F12 > Red se ve qué nodo atendió.
-        add_header X-Nodo $upstream_addr always;
     }
 }
