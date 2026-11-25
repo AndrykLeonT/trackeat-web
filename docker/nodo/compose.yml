@@ -17,7 +17,7 @@ x-app: &app
   env_file: ../../backend/.env
   restart: unless-stopped
   environment: &app-env
-    APP_URL: ${URL_PUBLICA:-http://127.0.0.1:8080}
+    APP_URL: ${URL_PUBLICA:-https://localhost:8443}
     LOG_CHANNEL: stderr
     DB_CONNECTION: pgsql
     DB_HOST: ${DB_HOST:-db}
@@ -41,7 +41,7 @@ x-app: &app
     REDIS_HOST: ${REDIS_HOST:-redis}
     REDIS_PORT: ${REDIS_PORT:-6379}
     REDIS_PASSWORD: ${REDIS_PASSWORD:-trackeat-redis}
-    TRACKEAT_SOCKET_URL: ${URL_PUBLICA:-http://127.0.0.1:8080}
+    TRACKEAT_SOCKET_URL: ${URL_PUBLICA:-https://localhost:8443}
     # Dirección del balanceador, o "*" para aceptar cualquier proxy directo.
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-*}
     # Captcha de Cloudflare Turnstile en registro y login. Por omisión, las llaves de PRUEBA públicas de

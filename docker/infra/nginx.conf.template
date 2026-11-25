@@ -27,7 +27,19 @@ map $http_upgrade $connection_upgrade {
 }
 
 server {
-    listen 80;
+    listen 80 default_server;
+    server_name _;
+
+    # El origen lo fija el despliegue. Conserva la ruta y los parámetros de la petición.
+    return 301 ${URL_PUBLICA}$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_certificate /etc/nginx/trackeat-tls/server.pem;
+    ssl_certificate_key /etc/nginx/trackeat-tls/server-key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
 
     # El navegador pide el icono en cada recarga y se come un turno.
     location = /favicon.ico { return 204; }
@@ -49,8 +61,11 @@ server {
 
         proxy_set_header Host              $http_host;   # con el puerto
         proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For   $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  "";
+        proxy_set_header X-Forwarded-Port  "";
+        proxy_set_header X-Forwarded-Prefix "";
 
         proxy_next_upstream error timeout http_502 http_503 http_504;
         # Si un nodo se apaga, su IP deja de contestar; sin esto Nginx espera 60 s antes de probar el otro.
