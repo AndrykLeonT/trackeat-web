@@ -14,12 +14,16 @@ class MigrationCompatibilityTest extends TestCase
 
     public function test_extending_users_preserves_existing_accounts_and_passwords(): void
     {
+        // Como en un rollback real, primero se retira la migración posterior que depende de `users.rol`.
+        $cocinero = require database_path('migrations/2026_11_25_000001_cocinero_estacion_general.php');
+        $cocinero->down();
         $migration = require database_path('migrations/2026_10_13_000001_extend_users_for_trackeat.php');
         $migration->down();
         $hash = Hash::make('existing-password');
         $id = DB::table('users')->insertGetId(['name' => 'Cuenta Anterior', 'email' => 'OLD@example.test',
             'password' => $hash, 'created_at' => now(), 'updated_at' => now()]);
         $migration->up();
+        $cocinero->up();
         $user = User::findOrFail($id);
         $this->assertSame('Cuenta Anterior', $user->name);
         $this->assertSame('Cuenta Anterior', $user->primer_nombre);

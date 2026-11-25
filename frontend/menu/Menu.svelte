@@ -23,6 +23,8 @@
     let category = $state('');
     let cart = $state(emptyCart());
     let user = $state(null);
+    // Límites del pedido (T-07) que manda /api/sesion; sin sesión se usan los valores por omisión del servidor.
+    let limites = $state({ mesas_max: 30, cantidad_max: 100, total_max: '5000.00' });
     let online = $state(true);
     let connected = $state(false);
     let connectionLabel = $state('Conectando…');
@@ -41,6 +43,7 @@
     let busy = $state(false);
     let initialized = $state(false);
     const total = $derived(cart.items.reduce((sum, item) => sum + item.cantidad * Number(item.precio), 0));
+    const overLimit = $derived(total > Number(limites.total_max));
     const activeUser = $derived(user && (!user.demo_expires_at || Date.parse(user.demo_expires_at) > Date.now()));
     let searchVersion = 0;
 
@@ -126,6 +129,7 @@
             await syncCatalog();
             const data = await session();
             user = data.user;
+            if (data.limites) limites = data.limites;
             status(user ? 'Conectado al servidor' : 'Inicia sesión para pedir', !!user);
         } catch (e) {
             error = `Se conserva el catálogo local. ${e.message}`;
@@ -173,7 +177,7 @@
     async function add(product) {
         if (cart.pending || busy || product.disponible === false) return;
         const existing = cart.items.find((item) => item.id_producto === product.id);
-        if (existing) existing.cantidad = Math.min(100, existing.cantidad + 1);
+        if (existing) existing.cantidad = Math.min(limites.cantidad_max, existing.cantidad + 1);
         else cart.items.push({ id_producto: product.id, cantidad: 1, notas: '', nombre: product.nombre, precio: product.precio });
         try {
             await persist();
@@ -201,7 +205,7 @@
     }
     async function send(event) {
         event.preventDefault();
-        if (!online || !activeUser || !cart.items.length || busy || needsReview || cart.items.some((item) => item.unavailable)) return;
+        if (!online || !activeUser || !cart.items.length || overLimit || busy || needsReview || cart.items.some((item) => item.unavailable)) return;
         busy = true;
         error = '';
         message = '';
@@ -409,7 +413,7 @@
                                     >Cantidad de {item.nombre}<input
                                         type="number"
                                         min="1"
-                                        max="100"
+                                        max={limites.cantidad_max}
                                         required
                                         bind:value={item.cantidad}
                                         onchange={changeCart}
@@ -440,6 +444,7 @@
                                 >Número de mesa<input
                                     type="number"
                                     min="1"
+                                    max={limites.mesas_max}
                                     required
                                     bind:value={cart.num_mesa}
                                     onchange={changeCart}
@@ -448,6 +453,9 @@
                             >{/if}
                     </fieldset>
                     <p class="font-bold">Total estimado: ${total.toFixed(2)} MXN</p>
+                    {#if overLimit}<p role="alert" class="text-sm text-destructive">
+                            El pedido supera el máximo de ${Number(limites.total_max).toFixed(2)} MXN. Quita productos o divídelo en varios pedidos.
+                        </p>{/if}
                     <p class="text-xs text-muted-foreground">El servidor verifica disponibilidad y precios al confirmar.</p>
                     {#if user && user.rol !== 'cliente'}<p class="text-sm">
                             Para pedir, usa una cuenta cliente o el enlace de demostración en otro navegador.
@@ -459,6 +467,7 @@
                             !activeUser ||
                             user?.rol !== 'cliente' ||
                             !cart.items.length ||
+                            overLimit ||
                             busy ||
                             needsReview ||
                             cart.items.some((item) => item.unavailable)}

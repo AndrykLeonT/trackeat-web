@@ -14,6 +14,7 @@ use App\Support\DomainAccess;
 use App\Support\Money;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -24,18 +25,19 @@ class PedidoService
     public function crear(User $actor, array $data): Pedido
     {
         DomainAccess::requireRole($actor, ['cliente', 'mesero', 'cajero', 'administrador']);
+        $limites = config('trackeat.pedidos');
         $data = Validator::make($data, [
             'tipo_entrega' => ['required', 'in:para_llevar,comer_aqui'],
-            'num_mesa' => ['nullable', 'integer', 'min:1', 'required_if:tipo_entrega,comer_aqui', 'prohibited_if:tipo_entrega,para_llevar'],
-            'items' => ['required', 'array', 'min:1', 'max:100'],
+            'num_mesa' => ['nullable', 'integer', 'min:1', 'max:'.$limites['mesas_max'], 'required_if:tipo_entrega,comer_aqui', 'prohibited_if:tipo_entrega,para_llevar'],
+            'items' => ['required', 'array', 'min:1', 'max:'.$limites['renglones_max']],
             'items.*.id_producto' => ['required', 'integer'],
-            'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:10000'],
+            'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:'.$limites['cantidad_max']],
             'items.*.notas' => ['nullable', 'string', 'max:1000', 'not_regex:/\x00/u'],
             'items.*.precio_confirmado' => ['sometimes', 'required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
             'client_request_id' => ['nullable', 'uuid'],
         ])->validate();
 
-        return DB::transaction(function () use ($data, $actor) {
+        return DB::transaction(function () use ($data, $actor, $limites) {
             if (! empty($data['client_request_id'])) {
                 // Serialize retries of the same request, including simultaneous HTTP requests.
                 DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [$actor->id.':'.$data['client_request_id']]);
@@ -46,9 +48,20 @@ class PedidoService
             }
             // El dueño del pedido es siempre quien lo levanta: el cliente en la web o el personal que lo captura.
             // Nadie puede registrarlo a nombre de otra cuenta ni vincular un cliente aparte.
-            $owner = User::whereKey($actor->id)->where('eliminado', false)->sharedLock()->first();
+            // Bloqueo exclusivo (no compartido): serializa los pedidos simultáneos del mismo usuario, aun en nodos
+            // distintos, para que el conteo de pedidos en curso sea exacto. Va después del reintento: un reintento
+            // devuelve su pedido aunque el usuario ya esté en el límite.
+            $owner = User::whereKey($actor->id)->where('eliminado', false)->lockForUpdate()->first();
             if (! $owner) {
                 throw new AuthorizationException('No tiene permiso para esta operación.');
+            }
+            $esCliente = $owner->rol === 'cliente';
+            if ($esCliente) {
+                $abiertos = Pedido::where('id_usuario', $owner->id)->where('eliminado', false)
+                    ->whereIn('estado', ['recibido', 'preparacion', 'listo'])->count();
+                if ($abiertos >= $limites['abiertos_max_cliente']) {
+                    $this->invalid('pedidos', "Ya tienes {$abiertos} pedidos en curso. Espera a que se entregue alguno para hacer otro.");
+                }
             }
             $lines = [];
             $total = '0.00';
@@ -67,6 +80,10 @@ class PedidoService
                 $total = Money::add($total, Money::multiply($product->precio, $item['cantidad']));
             }
             Money::parse($total, 'total');
+            $totalMax = Money::parse($limites[$esCliente ? 'total_max_cliente' : 'total_max_personal'], 'total');
+            if (bccomp($total, $totalMax, 2) > 0) {
+                $this->invalid('total', 'El pedido supera el máximo de $'.number_format((float) $totalMax, 2).' MXN. Divídelo en varios pedidos o pide ayuda al personal.');
+            }
             // El folio se toma al final, con productos ya validados: el bloqueo de su fila dura hasta el commit.
             $pedido = Pedido::create(['id_usuario' => $owner->id, 'numero_pedido' => $this->siguienteFolio(),
                 'tipo_entrega' => $data['tipo_entrega'], 'num_mesa' => $data['num_mesa'] ?? null, 'total' => $total,
@@ -89,13 +106,12 @@ class PedidoService
         Validator::make(['estacion' => $station, 'estado' => $newState], [
             'estacion' => 'required|in:general,cocina,barra', 'estado' => 'required|in:preparacion,listo,entregado',
         ])->validate();
-        $role = $actor->fresh()->rol;
-        if (($role === 'cocinero' && $newState === 'entregado') || (in_array($role, ['mesero', 'cajero'], true) && $newState !== 'entregado')) {
-            throw new AuthorizationException('El rol no puede realizar esta transición.');
-        }
+        // Rol, estación y sala se leen de la base, no de la sesión: un cambio del administrador aplica de inmediato.
+        $actor = $actor->fresh();
 
         return DB::transaction(function () use ($actor, $pedidoId, $station, $newState) {
             $pedido = Pedido::lockForUpdate()->findOrFail($pedidoId);
+            Gate::forUser($actor)->authorize('avanzar', [$pedido, $station, $newState]);
             $this->active($pedido);
             $line = $pedido->estaciones()->where('estacion', $station)->lockForUpdate()->firstOrFail();
             $index = array_search($line->estado, self::FLOW, true);

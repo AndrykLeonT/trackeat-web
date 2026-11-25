@@ -112,6 +112,7 @@
             {#each orders.filter((order) => !['entregado', 'cancelado'].includes(order.estado)) as order (order.id)}<ComandaCard
                     {order}
                     role={user?.rol}
+                    estacion={user?.estacion}
                     disabled={busy !== null}
                     onadvance={advance}
                 />{:else}<p class="text-sm text-muted-foreground">No hay comandas activas.</p>{/each}

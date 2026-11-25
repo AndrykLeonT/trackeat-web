@@ -36,10 +36,12 @@ class PedidoController extends Controller
 
     public function crear(Request $request, PedidoService $service)
     {
+        // Mismos límites que PedidoService (config `trackeat.pedidos`); el servicio aplica además mesa, total y pedidos en curso.
+        $limites = config('trackeat.pedidos');
         $data = $request->validate([
             'client_request_id' => ['required', 'uuid'], 'tipo_entrega' => ['required', 'string'],
-            'num_mesa' => ['nullable', 'integer'], 'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.id_producto' => ['required', 'integer'], 'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:100'],
+            'num_mesa' => ['nullable', 'integer'], 'items' => ['required', 'array', 'min:1', 'max:'.$limites['renglones_max']],
+            'items.*.id_producto' => ['required', 'integer'], 'items.*.cantidad' => ['required', 'integer', 'min:1', 'max:'.$limites['cantidad_max']],
             'items.*.notas' => ['nullable', 'string', 'max:1000', 'not_regex:/\x00/u'],
             'items.*.precio_confirmado' => ['sometimes', 'required', 'numeric', 'min:0', 'regex:/^\d{1,10}(\.\d{1,2})?$/'],
         ]);

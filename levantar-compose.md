@@ -1,4 +1,4 @@
-# Levantar TrackEat con Docker (una sola PC)
+git # Levantar TrackEat con Docker (una sola PC)
 
 Guía para levantar la Práctica 5 completa en una computadora y comprobar qué nodo atiende cada petición. Para repartirlo en tres PCs, ver [cambiar a 3 pc.md](cambiar%20a%203%20pc.md). El informe de la práctica está en [docs/informe-practica-5.md](docs/informe-practica-5.md).
 
@@ -29,7 +29,7 @@ Los usuarios siempre entran por el **8080**. Los puertos 8001 y 8002 sirven para
 Abre PowerShell en la raíz del proyecto (`C:\web\trackeat-web`):
 
 ```powershell
-docker compose -f docker/compose.yml build
+docker docker/compose.yml build
 docker compose -f docker/compose.yml up -d
 docker compose -f docker/compose.yml exec nodo1 php artisan migrate --seed --force
 docker compose -f docker/compose.yml ps

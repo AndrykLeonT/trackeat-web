@@ -9,4 +9,13 @@ return [
     // Zona horaria que decide cuándo empieza el día para el folio consecutivo de los pedidos. Es la del
     // restaurante (Mazatlán), no APP_TIMEZONE: cambiar esa afectaría todas las fechas del sistema.
     'zona_folio' => env('TRACKEAT_ZONA_FOLIO', 'America/Mazatlan'),
+    // Módulo 2 · Límites de negocio al crear un pedido (T-07, superficie A08). Los aplica PedidoService.
+    'pedidos' => [
+        'cantidad_max' => (int) env('TRACKEAT_CANTIDAD_MAX', 100),          // piezas de un producto en un renglón
+        'renglones_max' => (int) env('TRACKEAT_RENGLONES_MAX', 50),         // renglones (productos) por pedido
+        'total_max_cliente' => (string) env('TRACKEAT_TOTAL_MAX_CLIENTE', '5000.00'),    // MXN, pedido web
+        'total_max_personal' => (string) env('TRACKEAT_TOTAL_MAX_PERSONAL', '20000.00'), // MXN, capturado por personal
+        'mesas_max' => (int) env('TRACKEAT_MESAS_MAX', 30),                  // mesas numeradas de 1 a este valor
+        'abiertos_max_cliente' => (int) env('TRACKEAT_ABIERTOS_MAX_CLIENTE', 3), // pedidos en curso por cliente
+    ],
 ];

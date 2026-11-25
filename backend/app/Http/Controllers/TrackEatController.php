@@ -11,9 +11,15 @@ class TrackEatController extends Controller
         $user = $request->user();
 
         return response()->json([
-            'user' => $user ? ['id' => $user->id, 'name' => $user->name, 'rol' => $user->rol,
+            'user' => $user ? ['id' => $user->id, 'name' => $user->name, 'rol' => $user->rol, 'estacion' => $user->estacion,
                 'demo_room' => $user->demo_room, 'demo_expires_at' => $user->demo_expires_at?->toISOString()] : null,
             'csrf' => csrf_token(),
+            // Límites del pedido para que el menú avise antes de enviar; el servidor los aplica de todos modos.
+            'limites' => $user ? [
+                'mesas_max' => config('trackeat.pedidos.mesas_max'),
+                'cantidad_max' => config('trackeat.pedidos.cantidad_max'),
+                'total_max' => config('trackeat.pedidos.'.($user->rol === 'cliente' ? 'total_max_cliente' : 'total_max_personal')),
+            ] : null,
             'socket' => ['key' => config('reverb.apps.apps.0.key'), 'url' => config('trackeat.socket_url')],
         ])->header('Cache-Control', 'no-store');
     }
