@@ -17,6 +17,9 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
+    // Mismo mensaje para cualquier registro rechazado que no sea un error de captura del usuario.
+    public const NO_SE_PUDO = 'No se pudo completar el registro. Intenta de nuevo.';
+
     /**
      * Show the registration page.
      */
@@ -35,7 +38,7 @@ class RegisteredUserController extends Controller
         // Campo trampa (Práctica 6, medida 3): una persona no lo ve; si llega con texto, lo llenó un bot.
         // El mensaje es genérico para no avisarle al bot que cayó en la trampa.
         if ($request->filled('website')) {
-            throw ValidationException::withMessages(['email' => 'No se pudo completar el registro. Intenta de nuevo.']);
+            throw ValidationException::withMessages(['email' => self::NO_SE_PUDO]);
         }
 
         // Captcha primero: sin él no se revisa nada más (por ejemplo, si el correo ya existe).
@@ -43,7 +46,7 @@ class RegisteredUserController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'email' => 'required|string|lowercase|email|max:255',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'primer_nombre' => 'nullable|string|max:255',
             'segundo_nombre' => 'nullable|string|max:255',
@@ -51,6 +54,12 @@ class RegisteredUserController extends Controller
             'segundo_apellido' => 'nullable|string|max:255',
             'telefono' => 'nullable|string|max:30',
         ]);
+
+        // Error genérico (Práctica 6, medida 2): no se dice que el correo ya está registrado,
+        // se responde igual que el campo trampa para no revelar qué cuentas existen.
+        if (User::where('email', $request->email)->exists()) {
+            throw ValidationException::withMessages(['email' => self::NO_SE_PUDO]);
+        }
 
         $user = User::create([
             'name' => $request->name,
