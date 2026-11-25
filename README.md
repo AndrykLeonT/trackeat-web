@@ -134,6 +134,8 @@ track-eat/
 
 ## 8. Cómo ejecutar el proyecto
 
+> **Instalación completa con Docker** (modo recomendado: nueve contenedores en una PC con Windows, con apéndices para dos y tres PCs): ver el [manual de despliegue](docs/Documentacion_Tecnica/Manual_Despliegue.md). Lo que sigue es para desarrollar en local.
+
 ### Requisitos
 
 PHP 8.2 o superior con `pdo_pgsql` y `bcmath`, PostgreSQL 15+, Composer, Node.js y pnpm.
