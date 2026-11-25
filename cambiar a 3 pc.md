@@ -14,7 +14,7 @@ Ejemplo con tres PCs (cambia las IPs por las tuyas; se ven con `ipconfig`):
 | **B** · nodo 1 | `192.168.1.11` | `nodo1`, `reverb1`, `cola1` | `docker/nodo/compose.yml` |
 | **C** · nodo 2 | `192.168.1.12` | `nodo2`, `reverb2`, `cola2` | `docker/nodo/compose.yml` |
 
-Los usuarios entran siempre por la **PC A**: `http://192.168.1.10:8080`. Las tres PCs deben estar en la **misma red** y verse entre sí.
+Los usuarios entran siempre por la **PC A**: `https://192.168.1.10:8443`. Las tres PCs deben estar en la **misma red** y verse entre sí.
 
 ## Qué cambia respecto a una PC
 
@@ -76,7 +76,7 @@ REVERB1_ADDR=192.168.1.11:8091
 REVERB2_ADDR=192.168.1.12:8092
 
 # Dirección con la que el navegador entra (la del balanceador, PC A)
-URL_PUBLICA=http://192.168.1.10:8080
+URL_PUBLICA=https://192.168.1.10:8443
 ```
 
 Qué hace cada grupo:
@@ -84,17 +84,11 @@ Qué hace cada grupo:
 - `ESCUCHA=0.0.0.0` hace que los contenedores acepten conexiones de otras PCs. Sin esto solo escuchan en `127.0.0.1` y las otras PCs no llegan.
 - `DB_*` y `REDIS_*` los usan los nodos y los Reverb para llegar a la PC A. Los puertos son los **publicados** (5433 y 6380), no los internos de los contenedores.
 - `NODO*_ADDR` y `REVERB*_ADDR` los usa Nginx (en la PC A) para llegar a los nodos.
-- `URL_PUBLICA` se usa como `APP_URL` y como dirección del WebSocket que recibe el navegador. Debe ser la del balanceador; si dejas `127.0.0.1`, el WebSocket intentará conectar al equipo del propio visitante.
+- `URL_PUBLICA` se usa como `APP_URL` y como dirección del WebSocket que recibe el navegador. Usa la dirección HTTPS del balanceador. El certificado debe incluir su nombre o IP y cada navegador que lo abra debe confiar en la CA. [Preparación TLS](docs/evidencias/02-nginx-https.md)
 
-Opcional (ya tienen valor por omisión, solo cámbialos si quieres):
+Completa `DB_PASSWORD`, `REDIS_PASSWORD` y `REVERB_APP_SECRET` con los valores privados compartidos del despliegue. Consulta la [preparación](docs/evidencias/05-cierre-practica-6.md#credenciales-y-arranque). Configura `TRUSTED_PROXIES` con la dirección que los nodos ven del balanceador.
 
-```
-DB_PASSWORD=trackeat
-REDIS_PASSWORD=trackeat-redis
-TRUSTED_PROXIES=*
-```
-
-`TRUSTED_PROXIES=*` (el valor por omisión) acepta cualquier proxy directo y funciona siempre. Si quieres restringirlo a la PC del balanceador, pon su IP, pero si el tráfico llega con otra dirección de origen (por ejemplo por la red de WSL) puede dar problemas con las cabeceras `X-Forwarded-*`; ante la duda, déjalo en `*`.
+En un despliegue repartido, verifica la dirección de origen que llega por Docker o WSL y configura esa dirección en `TRUSTED_PROXIES`.
 
 ### 1.4 Abrir el firewall de Windows
 
@@ -102,7 +96,7 @@ En cada PC, PowerShell **como administrador**, con los puertos que esa PC public
 
 ```powershell
 # PC A (infraestructura)
-New-NetFirewallRule -DisplayName "TrackEat infra" -Direction Inbound -Protocol TCP -LocalPort 8080,5433,6380 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "TrackEat infra" -Direction Inbound -Protocol TCP -LocalPort 8080,8443,5433,6380 -Action Allow -Profile Any
 
 # PC B (nodo 1)
 New-NetFirewallRule -DisplayName "TrackEat nodo1" -Direction Inbound -Protocol TCP -LocalPort 8001,8091 -Action Allow -Profile Any
@@ -147,7 +141,7 @@ docker compose --env-file docker/.env -f docker/nodo/compose.yml exec nodo1 php 
 
 Desde **cualquier PC** (o un celular en la misma red), abre el balanceador:
 
-- `http://192.168.1.10:8080/salud` y recarga varias veces: el campo `nodo` cambia entre `"1"` y `"2"`.
+- `https://192.168.1.10:8443/salud` y recarga varias veces: el campo `nodo` cambia entre `"1"` y `"2"`.
 - En F12 > Red, la cabecera `X-Nodo` ahora muestra la **IP de la PC** que atendió (`192.168.1.11:8001` o `192.168.1.12:8002`), en lugar de una IP interna de Docker.
 - `ip_cliente` en `/salud` debería mostrar la IP de quien consulta. Docker Desktop en Windows a veces oculta la IP original y muestra la de la puerta de enlace de Docker (`172.x.0.1`); es un detalle de la red de Docker Desktop, no un fallo del balanceo.
 

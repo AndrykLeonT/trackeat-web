@@ -1,6 +1,7 @@
 <script>
     import { onMount, tick } from 'svelte';
     import AppLayout from '../src/layouts/AppLayout.svelte';
+    import { session } from '../src/lib/trackeat.js';
     import Users from '@lucide/svelte/icons/users';
     import UserRound from '@lucide/svelte/icons/user-round';
     import Plus from '@lucide/svelte/icons/plus';
@@ -23,6 +24,8 @@
     let searchName = $state('');
     let searchArea = $state('');
     let online = $state(true);
+    let user = $state(null);
+    let logoutToken = $state('');
     let offlineError = $state('');
     let detailRecord = $state(null);
     let deletingRecord = $state(null);
@@ -68,12 +71,23 @@
     }
 
     onMount(() => {
-        online = navigator.onLine;
-        const connectionChanged = () => {
+        let sessionVersion = 0;
+        async function connectionChanged() {
             online = navigator.onLine;
+            const version = ++sessionVersion;
+            const data = online ? await session().catch(() => null) : null;
+            if (!alive || version !== sessionVersion) return;
+            user = data?.user ?? null;
+            logoutToken = data?.csrf ?? '';
+        }
+
+        const resume = (event) => {
+            if (event.persisted) connectionChanged();
         };
+        connectionChanged();
         window.addEventListener('online', connectionChanged);
         window.addEventListener('offline', connectionChanged);
+        window.addEventListener('pageshow', resume);
         window.addEventListener('focus', reloadCatalog);
         if ('BroadcastChannel' in window) {
             channel = new BroadcastChannel('trackeat-personal-cambios');
@@ -88,6 +102,7 @@
             refreshSequence += 1;
             window.removeEventListener('online', connectionChanged);
             window.removeEventListener('offline', connectionChanged);
+            window.removeEventListener('pageshow', resume);
             window.removeEventListener('focus', reloadCatalog);
             channel?.close();
             Object.values(photoUrls).forEach((url) => URL.revokeObjectURL(url));
@@ -249,6 +264,8 @@
     nativeNavigation
     currentUrl="/personal/"
     headerTitle="Personal"
+    sessionUser={user}
+    {logoutToken}
     connected={online}
     connectionLabel={online ? 'Con conexión' : 'Sin conexión'}
     contentId="contenido"

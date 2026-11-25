@@ -1,62 +1,157 @@
-# Balanceador de la Práctica 5. Para cambiar de algoritmo, cambia la línea marcada y reinicia el balanceador
-# (este archivo es una plantilla: la imagen la convierte en configuración al arrancar, así que `nginx -s reload` no basta):
-#   docker compose -f docker/compose.yml restart balanceador
-# Las direcciones de los nodos y de los Reverb llegan por variables (docker/.env), no se editan aquí.
-# "resolve" hace que Nginx vuelva a consultar el DNS de Docker: si un contenedor se recrea con otra IP,
-# o aún no existe cuando Nginx arranca, el balanceador lo encuentra sin reiniciarse.
+# Docker genera /etc/nginx/conf.d/default.conf a partir de esta plantilla al iniciar.
+# Después de editarla, recrea o reinicia el servicio balanceador para volver a renderizarla.
+# Usa el DNS interno de Docker. La caché de cinco segundos permite detectar cambios de IP.
 resolver 127.0.0.11 valid=5s ipv6=off;
 
+# Define el grupo de servidores Laravel.
 upstream trackeat {
+    # Comparte el estado de los nodos entre los procesos de Nginx.
     zone trackeat 64k;
-    least_conn;        # ip_hash;  o bórrala para turno rotatorio
-    server ${NODO1_ADDR} resolve max_fails=2 fail_timeout=10s;
-    server ${NODO2_ADDR} resolve max_fails=2 fail_timeout=10s;
-}
-
-# Un Reverb por nodo; entre ellos se sincronizan con Redis, así que una pantalla puede conectarse a cualquiera.
-upstream reverb {
-    zone reverb 64k;
+    # Envía la petición al nodo con menos conexiones activas.
     least_conn;
+    # Resuelve de nuevo el nodo 1 y lo retira 10 s si acumula dos fallos en ese intervalo.
+    server ${NODO1_ADDR} resolve max_fails=2 fail_timeout=10s;
+    # Aplica el mismo criterio al nodo 2.
+    server ${NODO2_ADDR} resolve max_fails=2 fail_timeout=10s;
+} # Fin del grupo Laravel.
+
+# Define el grupo de servidores WebSocket. Redis distribuye los eventos entre ellos.
+upstream reverb {
+    # Comparte el estado de los servidores WebSocket entre los procesos de Nginx.
+    zone reverb 64k;
+    # Distribuye las conexiones persistentes según la carga actual.
+    least_conn;
+    # Resuelve Reverb 1 y lo retira 10 s después de dos fallos en ese intervalo.
     server ${REVERB1_ADDR} resolve max_fails=2 fail_timeout=10s;
+    # Aplica el mismo criterio a Reverb 2.
     server ${REVERB2_ADDR} resolve max_fails=2 fail_timeout=10s;
-}
+} # Fin del grupo Reverb.
 
+# Selecciona el encabezado Connection que necesita el proxy de WebSocket.
 map $http_upgrade $connection_upgrade {
+    # Una solicitud con Upgrade se reenvía como actualización de protocolo.
     default upgrade;
-    ''      close;
-}
+    # Una solicitud sin Upgrade se trata como HTTP sin actualización.
+    '' close;
+} # Fin del mapa de Upgrade.
 
+# Obtiene el origen WebSocket de la misma URL pública HTTPS que usa Laravel.
+map "${URL_PUBLICA}" $trackeat_wss_origin {
+    # Conserva el host y el puerto, y sustituye el esquema por wss.
+    "~^https://(?<trackeat_public_authority>[^/]+)$" "wss://$trackeat_public_authority";
+    # Una URL que no coincide no añade un origen a connect-src.
+    default "";
+} # Fin del mapa de origen WebSocket.
+
+# Elige una única política de referencia para cada respuesta HTTPS.
+map $upstream_http_referrer_policy $trackeat_referrer_policy {
+    # Respeta la política de la pantalla de recuperación de contraseña.
+    "no-referrer" no-referrer;
+    # En el resto de respuestas limita el detalle al cambiar de origen.
+    default strict-origin-when-cross-origin;
+} # Fin del mapa de referencia.
+
+# Resuelve el valor de la cabecera de diagnóstico del balanceador.
+map $uri $trackeat_app_node {
+    # Omite X-Nodo en las conexiones de Reverb.
+    ~^/app "";
+    # Usa la dirección del nodo Laravel que respondió.
+    default $upstream_addr;
+} # Fin del mapa de diagnóstico.
+
+# Registra hora, ID de solicitud, método, estado y duración. Omite IP, URL y cabeceras del cliente.
+log_format trackeat_minimo '$time_iso8601 id=$request_id method=$request_method status=$status duration=$request_time';
+
+# El servidor HTTP envía el tráfico al origen HTTPS configurado.
 server {
-    listen 80;
+    # Escucha en el puerto 80 del contenedor, publicado como 8080 por defecto.
+    listen 80 default_server;
+    # Atiende las solicitudes que llegan a este servidor predeterminado.
+    server_name _;
+    # Usa el formato mínimo para el tráfico HTTP.
+    access_log /var/log/nginx/access.log trackeat_minimo;
+    # Devuelve 301 y conserva la ruta y los parámetros originales.
+    return 301 ${URL_PUBLICA}$request_uri;
+} # Fin del servidor HTTP.
 
-    # El navegador pide el icono en cada recarga y se come un turno.
-    location = /favicon.ico { return 204; }
+# El servidor HTTPS termina TLS y reenvía tráfico hacia la red interna.
+server {
+    # Escucha en el puerto TLS 443 del contenedor, publicado como 8443 por defecto.
+    listen 443 ssl default_server;
+    # Atiende las solicitudes que llegan al servidor TLS predeterminado.
+    server_name _;
+    # Lee el certificado del volumen de solo lectura.
+    ssl_certificate /etc/nginx/trackeat-tls/server.pem;
+    # Lee la clave privada correspondiente al certificado.
+    ssl_certificate_key /etc/nginx/trackeat-tls/server-key.pem;
+    # Admite únicamente TLS 1.2 y TLS 1.3.
+    ssl_protocols TLSv1.2 TLSv1.3;
+    # Usa el formato mínimo también para el tráfico HTTPS.
+    access_log /var/log/nginx/access.log trackeat_minimo;
 
-    # WebSockets de Reverb (pantalla de cocina). Si un Reverb cae, el cliente se reconecta y Nginx lo manda al otro.
+    # CSP deniega por defecto y habilita recursos propios, Turnstile, Bunny Fonts y WSS.
+    # También limita formularios y URL base al propio origen e impide marcos externos sobre TrackEat.
+    add_header Content-Security-Policy "default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' https://fonts.bunny.net; font-src 'self' https://fonts.bunny.net; img-src 'self' data: blob:; connect-src 'self' $trackeat_wss_origin; frame-src https://challenges.cloudflare.com; worker-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'" always;
+    # HSTS se entrega por HTTPS y dura cinco minutos en este despliegue de demo.
+    add_header Strict-Transport-Security "max-age=300" always;
+    # Indica al navegador que respete el tipo de contenido declarado.
+    add_header X-Content-Type-Options "nosniff" always;
+    # Aplica la política elegida por el mapa, incluso en respuestas de error.
+    add_header Referrer-Policy $trackeat_referrer_policy always;
+    # Impide que el sitio solicite cámara, micrófono o ubicación.
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    # Conserva el diagnóstico en el mismo nivel para heredar las cinco cabeceras.
+    add_header X-Nodo $trackeat_app_node always;
+
+    # Responde al icono sin enviar la solicitud a un nodo Laravel.
+    location = /favicon.ico {
+        # Devuelve una respuesta sin cuerpo.
+        return 204;
+    } # Fin del endpoint de icono.
+
+    # Envía a Reverb las solicitudes del endpoint WebSocket.
     location /app {
+        # Usa el grupo de Reverb que está en la red privada.
         proxy_pass http://reverb;
+        # HTTP/1.1 permite la actualización a WebSocket.
         proxy_http_version 1.1;
+        # Propaga al upstream el protocolo solicitado por el navegador.
         proxy_set_header Upgrade $http_upgrade;
+        # Envía el valor de Connection calculado en el mapa.
         proxy_set_header Connection $connection_upgrade;
+        # Conserva el host y su puerto.
         proxy_set_header Host $http_host;
+        # Intenta el otro servidor ante un error o timeout de conexión.
         proxy_next_upstream error timeout;
+        # Limita la espera para conectar al upstream a dos segundos.
         proxy_connect_timeout 2s;
+        # Permite hasta una hora entre lecturas en el socket persistente.
         proxy_read_timeout 3600s;
-    }
+    } # Fin del proxy WebSocket.
 
+    # Envía las demás solicitudes a Laravel.
     location / {
+        # Usa el grupo Laravel de la red privada.
         proxy_pass http://trackeat;
-
-        proxy_set_header Host              $http_host;   # con el puerto
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        # Conserva el host y el puerto para la generación de URLs.
+        proxy_set_header Host $http_host;
+        # Entrega a Laravel la IP que observó directamente Nginx.
+        proxy_set_header X-Real-IP $remote_addr;
+        # Reemplaza la cadena de IP recibida por la IP observada.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        # Informa a Laravel que la conexión original usó HTTPS.
         proxy_set_header X-Forwarded-Proto $scheme;
-
+        # Descarta un host reenviado que el cliente pudiera suministrar.
+        proxy_set_header X-Forwarded-Host "";
+        # Descarta un puerto reenviado que el cliente pudiera suministrar.
+        proxy_set_header X-Forwarded-Port "";
+        # Descarta un prefijo reenviado que el cliente pudiera suministrar.
+        proxy_set_header X-Forwarded-Prefix "";
+        # Omite la cabecera de Laravel para que se envíe solo la elegida en el mapa.
+        proxy_hide_header Referrer-Policy;
+        # Reintenta con otro nodo ante fallos de conexión o respuestas de gateway.
         proxy_next_upstream error timeout http_502 http_503 http_504;
-        # Si un nodo se apaga, su IP deja de contestar; sin esto Nginx espera 60 s antes de probar el otro.
+        # Limita a dos segundos la espera para conectar a cada nodo.
         proxy_connect_timeout 2s;
-
-        # Para comprobar el reparto: en F12 > Red se ve qué nodo atendió.
-        add_header X-Nodo $upstream_addr always;
-    }
-}
+    } # Fin del proxy Laravel.
+} # Fin del servidor HTTPS.

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -29,14 +30,21 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): HttpResponse
     {
         $request->authenticate();
 
         $request->session()->regenerate();
 
-        // Después de iniciar sesión se entra al panel; si venía de una página protegida, regresa a ella.
-        return redirect()->intended(route('dashboard', absolute: false));
+        $request->session()->forget('url.intended');
+
+        return match ($request->user()->rol) {
+            'administrador' => to_route('admin.panel'),
+            'cocinero' => to_route('comandas'),
+            'cajero' => to_route('caja.index'),
+            'mesero' => to_route('mesero.pedidos'),
+            default => Inertia::location(route('menu').'/'),
+        };
     }
 
     /**

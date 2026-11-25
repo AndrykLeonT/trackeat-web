@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class PasswordResetLinkController extends Controller
 {
@@ -28,14 +31,20 @@ class PasswordResetLinkController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
+        $data = $request->validate(['email' => 'required|string|email|max:255']);
 
-        Password::sendResetLink(
-            $request->only('email')
-        );
+        try {
+            if (in_array(config('mail.default'), ['smtp', 'array'], true)) {
+                Password::sendResetLink([
+                    'email' => Str::lower($data['email']),
+                    'eliminado' => false,
+                    'demo_room' => null,
+                ]);
+            }
+        } catch (TransportExceptionInterface) {
+            Log::channel('security')->warning('password_reset_delivery_failed');
+        }
 
-        return back()->with('status', __('A reset link will be sent if the account exists.'));
+        return back()->with('status', 'Si la cuenta está disponible, recibirás un enlace para restablecer la contraseña.');
     }
 }

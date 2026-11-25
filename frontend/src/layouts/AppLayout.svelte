@@ -1,5 +1,6 @@
 <script>
     import { tick } from 'svelte';
+    import { page } from '@inertiajs/svelte';
     import Sidebar from '@/components/layout/Sidebar.svelte';
     import Header from '@/components/layout/Header.svelte';
     import Footer from '@/components/layout/Footer.svelte';
@@ -9,12 +10,23 @@
         children,
         nativeNavigation = false,
         currentUrl = null,
-        userRole = null,
+        sessionUser = null,
+        logoutToken = '',
         headerTitle = 'Panel Principal',
         connectionLabel = 'Servicio Activo',
         connected = true,
         contentId = undefined,
     } = $props();
+
+    const roleLabels = {
+        cliente: 'Cliente',
+        cocinero: 'Cocinero',
+        mesero: 'Mesero',
+        cajero: 'Cajero',
+        administrador: 'Administrador',
+    };
+    const user = $derived(nativeNavigation ? sessionUser : $page?.props?.auth?.user);
+    const roleLabel = $derived(user ? (roleLabels[user.rol] ?? 'Cuenta') : 'Visitante');
 
     // Estado del menú desplegable móvil
     let isMobileMenuOpen = $state(false);
@@ -41,7 +53,7 @@
 <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
     <!-- Barra lateral fija en Desktop (oculta en pantallas menores a md) -->
     <aside class="hidden md:block w-64 flex-shrink-0 border-r border-sidebar-border bg-sidebar">
-        <Sidebar {nativeNavigation} {currentUrl} {userRole} />
+        <Sidebar {nativeNavigation} {currentUrl} {user} {roleLabel} {logoutToken} />
     </aside>
 
     <!-- Menú Desplegable Móvil (Slide-over Drawer) -->
@@ -81,7 +93,7 @@
                 </div>
 
                 <!-- Contenido del Sidebar reutilizado -->
-                <Sidebar onNavigate={closeMobileMenu} {nativeNavigation} {currentUrl} {userRole} />
+                <Sidebar onNavigate={closeMobileMenu} {nativeNavigation} {currentUrl} {user} {roleLabel} {logoutToken} />
             </div>
         </dialog>
     {/if}
@@ -89,7 +101,16 @@
     <!-- Área principal con Header, Contenido y Footer -->
     <div class="flex flex-1 flex-col overflow-y-auto min-w-0">
         <header class="sticky top-0 z-10 border-b border-border bg-card/90 backdrop-blur-md">
-            <Header onToggleMobileMenu={toggleMobileMenu} {isMobileMenuOpen} {nativeNavigation} title={headerTitle} {connectionLabel} {connected} />
+            <Header
+                onToggleMobileMenu={toggleMobileMenu}
+                {isMobileMenuOpen}
+                {nativeNavigation}
+                {user}
+                {roleLabel}
+                title={headerTitle}
+                {connectionLabel}
+                {connected}
+            />
         </header>
 
         <main id={contentId} tabindex="-1" class="flex-1 p-4 sm:p-6">

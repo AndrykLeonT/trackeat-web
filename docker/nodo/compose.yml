@@ -17,14 +17,15 @@ x-app: &app
   env_file: ../../backend/.env
   restart: unless-stopped
   environment: &app-env
-    APP_URL: ${URL_PUBLICA:-http://127.0.0.1:8080}
+    APP_DEBUG: "false"
+    APP_URL: ${URL_PUBLICA:-https://localhost:8443}
     LOG_CHANNEL: stderr
     DB_CONNECTION: pgsql
     DB_HOST: ${DB_HOST:-db}
     DB_PORT: ${DB_PORT:-5432}
     DB_DATABASE: trackeat
     DB_USERNAME: trackeat
-    DB_PASSWORD: ${DB_PASSWORD:-trackeat}
+    DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en docker/.env}
     PGCONNECT_TIMEOUT: "1"
     SESSION_DRIVER: database
     CACHE_STORE: database
@@ -32,7 +33,7 @@ x-app: &app
     BROADCAST_CONNECTION: reverb
     REVERB_APP_ID: trackeat
     REVERB_APP_KEY: trackeat-balanceo
-    REVERB_APP_SECRET: trackeat-balanceo-secreto
+    REVERB_APP_SECRET: ${REVERB_APP_SECRET:?Define REVERB_APP_SECRET en docker/.env}
     REVERB_PORT: "8081"
     REVERB_SCHEME: http
     REVERB_ALLOWED_ORIGINS: "*"
@@ -40,8 +41,8 @@ x-app: &app
     REVERB_SCALING_ENABLED: "true"
     REDIS_HOST: ${REDIS_HOST:-redis}
     REDIS_PORT: ${REDIS_PORT:-6379}
-    REDIS_PASSWORD: ${REDIS_PASSWORD:-trackeat-redis}
-    TRACKEAT_SOCKET_URL: ${URL_PUBLICA:-http://127.0.0.1:8080}
+    REDIS_PASSWORD: ${REDIS_PASSWORD:?Define REDIS_PASSWORD en docker/.env}
+    TRACKEAT_SOCKET_URL: ${URL_PUBLICA:-https://localhost:8443}
     # Dirección del balanceador, o "*" para aceptar cualquier proxy directo.
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-*}
     # Captcha de Cloudflare Turnstile en registro y login. Por omisión, las llaves de PRUEBA públicas de

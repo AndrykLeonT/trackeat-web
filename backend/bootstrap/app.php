@@ -7,7 +7,10 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,10 +33,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(IdentificarNodo::class);
         $middleware->web(append: [
             SecurityAudit::class,
+            AuthenticateSession::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->respond(function (Response $response) {
+            $request = request();
+            if ($response->getStatusCode() === 403 && ! $request->expectsJson() && ! $request->is('api/*', 'broadcasting/auth')) {
+                $response = Inertia::render('errors/403')->toResponse($request);
+                $response->setStatusCode(403);
+            }
+
+            return $response;
+        });
     })->create();

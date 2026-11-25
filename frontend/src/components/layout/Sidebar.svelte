@@ -5,10 +5,10 @@
     import CookingPot from '@lucide/svelte/icons/cooking-pot';
     import Utensils from '@lucide/svelte/icons/utensils';
     import BookOpen from '@lucide/svelte/icons/book-open';
-    import ChefHat from '@lucide/svelte/icons/chef-hat';
     import LogOut from '@lucide/svelte/icons/log-out';
     import ExternalLink from '@lucide/svelte/icons/external-link';
     import Users from '@lucide/svelte/icons/users';
+    import UserRound from '@lucide/svelte/icons/user-round';
     import Package from '@lucide/svelte/icons/package';
     import Tags from '@lucide/svelte/icons/tags';
     import Banknote from '@lucide/svelte/icons/banknote';
@@ -19,8 +19,10 @@
     import ClipboardList from '@lucide/svelte/icons/clipboard-list';
     import HandPlatter from '@lucide/svelte/icons/hand-platter';
 
-    let { onNavigate = null, nativeNavigation = false, currentUrl = null, userRole = null } = $props();
-    const role = $derived(userRole ?? $page?.props?.auth?.user?.rol);
+    let { onNavigate = null, nativeNavigation = false, currentUrl = null, user = null, roleLabel = '', logoutToken = '' } = $props();
+    const role = $derived(user?.rol);
+
+    const signedInRoles = ['cliente', 'administrador', 'cocinero', 'mesero', 'cajero'];
 
     // Secciones organizadas de los módulos de TrackEat
     const navigationSections = [
@@ -36,6 +38,7 @@
                     name: 'Comandas',
                     href: '/comandas',
                     icon: CookingPot,
+                    roles: ['cocinero', 'administrador'],
                 },
                 // Módulo 2 · HU-04: historial por día, solo para clientes.
                 { name: 'Mis pedidos', href: '/mis-pedidos', icon: ClipboardList, roles: ['cliente'] },
@@ -79,6 +82,8 @@
         {
             title: 'Administración',
             items: [
+                { name: 'Panel de administración', href: '/admin', icon: LayoutDashboard, roles: ['administrador'] },
+                { name: 'Usuarios', href: '/admin/usuarios', icon: Users, roles: ['administrador'] },
                 {
                     name: 'Productos',
                     href: '/admin/productos',
@@ -92,6 +97,10 @@
                     roles: ['administrador'],
                 },
             ],
+        },
+        {
+            title: 'Cuenta',
+            items: [{ name: 'Mi perfil', href: '/perfil', icon: UserRound, roles: signedInRoles }],
         },
     ];
 
@@ -107,6 +116,7 @@
         if (href === '/dashboard') {
             return url === '/dashboard' || url === '/';
         }
+        if (href === '/admin') return url.split('?')[0] === href;
         if (href === '/caja') {
             return url === '/caja' || url.startsWith('/caja/pedidos') || url.startsWith('/caja/abrir');
         }
@@ -206,25 +216,37 @@
                 <div
                     class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-xs"
                 >
-                    {#if $page?.props?.auth?.user?.name}
+                    {#if user?.name}
                         <span class="text-xs font-bold uppercase">
-                            {$page.props.auth.user.name.slice(0, 2)}
+                            {user.name.slice(0, 2)}
                         </span>
                     {:else}
-                        <ChefHat class="size-4.5" />
+                        <UserRound class="size-4.5" aria-hidden="true" />
                     {/if}
                 </div>
                 <div class="flex flex-col min-w-0">
                     <span class="truncate text-xs font-semibold text-sidebar-foreground">
-                        {$page?.props?.auth?.user?.name ?? 'Chef de Cocina'}
+                        {user?.name ?? 'Visitante'}
                     </span>
-                    <span class="truncate text-[10px] text-sidebar-foreground/70">
-                        {$page?.props?.auth?.user?.email ?? 'Turno Activo'}
-                    </span>
+                    {#if user}
+                        <span class="truncate text-[10px] text-sidebar-foreground/70">{roleLabel}</span>
+                    {/if}
                 </div>
             </div>
 
-            {#if $page?.props?.auth?.user}
+            {#if user && nativeNavigation && logoutToken}
+                <form action="/logout" method="post">
+                    <input type="hidden" name="_token" value={logoutToken} />
+                    <button
+                        type="submit"
+                        title="Cerrar sesión"
+                        class="rounded-lg p-1.5 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                    >
+                        <LogOut class="size-4" />
+                        <span class="sr-only">Cerrar sesión</span>
+                    </button>
+                </form>
+            {:else if user && !nativeNavigation}
                 <Link
                     href={typeof route === 'function' ? route('logout') : '/logout'}
                     method="post"
