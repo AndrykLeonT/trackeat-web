@@ -65,8 +65,9 @@ class DemoSeeder extends Seeder
             foreach (['cocina', 'barra'] as $station) {
                 $orders->avanzar($users['cocinero'], $delivered->id, $station, 'preparacion');
                 $orders->avanzar($users['cocinero'], $delivered->id, $station, 'listo');
-                $orders->avanzar($users['mesero'], $delivered->id, $station, 'entregado');
             }
+            // La entrega es por pedido completo (HU-09).
+            $orders->entregar($users['mesero'], $delivered->id);
             $cash->cobrar($users['cajero'], $delivered->id, $closed->id, 'efectivo', '100.00');
             $cash->cobrar($users['cajero'], $delivered->id, $closed->id, 'tarjeta', '50.00', '10.00');
             $cash->cerrar($users['cajero'], $closed->id, '600.00', '50.00', '0.00');
@@ -79,7 +80,7 @@ class DemoSeeder extends Seeder
             $cancelled = $make('DEMO-004', $users['cliente2'], ['Papas']);
             $refund = $cash->cobrar($users['cajero'], $cancelled->id, $open->id, 'transferencia', '50.00');
             $cash->reembolsar($users['cajero'], $refund->id);
-            $orders->cancelar($users['mesero'], $cancelled->id);
+            $orders->cancelar($users['mesero'], $cancelled->id, 'Cliente se retiró');
         }, 3);
     }
 }

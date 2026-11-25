@@ -17,5 +17,9 @@ return [
         'total_max_personal' => (string) env('TRACKEAT_TOTAL_MAX_PERSONAL', '20000.00'), // MXN, capturado por personal
         'mesas_max' => (int) env('TRACKEAT_MESAS_MAX', 30),                  // mesas numeradas de 1 a este valor
         'abiertos_max_cliente' => (int) env('TRACKEAT_ABIERTOS_MAX_CLIENTE', 3), // pedidos en curso por cliente
+        // HU-05: motivos que el personal elige al cancelar (máx. 50 caracteres, la longitud de la columna).
+        'motivos_cancelacion' => ['Cliente se retiró', 'Error en la captura', 'Producto agotado', 'Pedido duplicado', 'Demora excesiva', 'Otro'],
+        // Lo que se guarda cuando cancela el propio cliente (a él no se le pide motivo).
+        'motivo_cliente' => 'Cancelado por el cliente',
     ],
 ];

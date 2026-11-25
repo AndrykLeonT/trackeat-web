@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Pedidos;
 use App\Http\Controllers\Controller;
 use App\Models\Pedido;
 use App\Services\PedidoService;
+use App\Support\DomainAccess;
+use App\Support\HistorialPedidos;
 use App\Support\OrderAccess;
+use App\Support\PedidosPorEntregar;
+use App\Support\TableroComandas;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -34,6 +38,19 @@ class PedidoController extends Controller
         return Inertia::render('public/pedido', ['pedido' => OrderAccess::find($request->user(), $pedido)->load('items.producto', 'estaciones')]);
     }
 
+    // HU-04 · Mis pedidos por día. Siempre filtra por quien hace la petición; `?dia=` solo cambia la fecha.
+    public function misPedidos(Request $request)
+    {
+        $dia = HistorialPedidos::normalizarDia($request->query('dia'));
+        $pagina = HistorialPedidos::delUsuario($request->user(), $dia === 'todos' ? null : $dia)
+            ->paginate(HistorialPedidos::POR_PAGINA)->withQueryString()
+            ->through(fn (Pedido $p) => ['id' => $p->id, 'numero_pedido' => $p->numero_pedido, 'estado' => $p->estado,
+                'total' => $p->total, 'tipo_entrega' => $p->tipo_entrega, 'num_mesa' => $p->num_mesa,
+                'created_at' => $p->created_at?->toISOString(), 'dia' => $p->dia]);
+
+        return Inertia::render('public/mis-pedidos', ['pedidos' => $pagina, 'dia' => $dia, 'hoy' => HistorialPedidos::hoy()]);
+    }
+
     public function crear(Request $request, PedidoService $service)
     {
         // Mismos límites que PedidoService (config `trackeat.pedidos`); el servicio aplica además mesa, total y pedidos en curso.
@@ -57,6 +74,52 @@ class PedidoController extends Controller
         $data = $request->validate(['estacion' => ['required', 'string'], 'estado' => ['required', 'string']]);
 
         return response()->json($service->avanzar($request->user(), $pedido->id, $data['estacion'], $data['estado']));
+    }
+
+    // HU-05. 404 si el pedido no es visible para el usuario; el servicio aplica la política y las reglas del pedido.
+    public function cancelar(Request $request, Pedido $pedido, PedidoService $service)
+    {
+        OrderAccess::find($request->user(), $pedido->id);
+        $data = $request->validate(['motivo' => ['nullable', 'string', 'max:50']]);
+
+        return response()->json($service->cancelar($request->user(), $pedido->id, $data['motivo'] ?? null));
+    }
+
+    // HU-06 · Tablero de comandas (cocineros y administrador). El filtro solo lo usa el administrador;
+    // al cocinero el servidor le impone su estación aunque envíe otra.
+    public function comandas(Request $request)
+    {
+        DomainAccess::requireRole($request->user(), ['cocinero', 'administrador']);
+        $actor = $request->user()->fresh();
+
+        return response()->json([
+            'estaciones' => TableroComandas::estacionesVisibles($actor, $request->query('estacion')),
+            'comandas' => TableroComandas::para($actor, $request->query('estacion'), $request->boolean('entregados')),
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    // HU-09 · Pedidos por entregar (mesero, cajero y administrador), a nivel de pedido.
+    public function paginaPorEntregar(Request $request)
+    {
+        DomainAccess::requireRole($request->user(), ['mesero', 'cajero', 'administrador']);
+
+        return Inertia::render('mesero/pedidos');
+    }
+
+    public function porEntregar(Request $request)
+    {
+        DomainAccess::requireRole($request->user(), ['mesero', 'cajero', 'administrador']);
+        $entrega = $request->query('entrega') === 'todos' ? 'todos' : 'comer_aqui';
+
+        return response()->json(['entrega' => $entrega, 'pedidos' => PedidosPorEntregar::lista($entrega)])->header('Cache-Control', 'no-store');
+    }
+
+    // La entrega es todo o nada; 404 si el pedido no es visible para el usuario.
+    public function entregar(Request $request, Pedido $pedido, PedidoService $service)
+    {
+        OrderAccess::find($request->user(), $pedido->id);
+
+        return response()->json($service->entregar($request->user(), $pedido->id));
     }
 
     public function tablero(Request $request)

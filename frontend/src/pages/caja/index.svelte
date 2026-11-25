@@ -24,9 +24,13 @@
                 <h1 class="text-2xl font-bold">Pedidos por cobrar</h1>
                 <p class="mt-1 text-sm text-muted-foreground">Pedidos no cancelados con saldo pendiente. Se actualiza cada 5 segundos.</p>
             </div>
-            {#if puedeCobrar}
-                <Link href={route('caja.turno')} class={buttonVariants({ variant: 'outline' })}>Ver mi turno</Link>
-            {/if}
+            <div class="flex flex-wrap gap-2">
+                <!-- Módulo 2 · HU-08: el cajero captura pedidos por teléfono en el menú (quedan a su nombre). -->
+                <a href="/menu/" class={buttonVariants()}>Capturar pedido</a>
+                {#if puedeCobrar}
+                    <Link href={route('caja.turno')} class={buttonVariants({ variant: 'outline' })}>Ver mi turno</Link>
+                {/if}
+            </div>
         </div>
 
         <Aviso campos={['corte']} />

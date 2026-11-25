@@ -80,7 +80,9 @@ try {
     const response = await sent;
     assert(response.ok(), await response.text());
     const order = await response.json();
-    await waitText(a, `Pedido confirmado: ${formatoFolio(order.numero_pedido)}`);
+    // HU-02: al confirmar, el menú lleva directo a la página del pedido con su folio.
+    await a.waitForURL(`${base}/pedidos/${order.id}`);
+    await a.getByRole('heading', { name: `Pedido ${formatoFolio(order.numero_pedido)}`, exact: true }).waitFor();
     await a.goto(`${base}/comandas/desglose`);
     await waitText(a, 'Tiempo real conectado');
     await a.getByRole('heading', { name: 'Mis pedidos', exact: true }).waitFor();
@@ -101,7 +103,7 @@ try {
     await staff.locator('#email').fill('administrador@example.test');
     await staff.locator('#password').fill('TrackEatDemo!2026');
     await staff.getByRole('button', { name: 'Log in', exact: true }).click();
-    await staff.waitForURL(base + '/');
+    await staff.waitForURL(`${base}/dashboard`);
     await staff.goto(`${base}/comandas`);
     await waitText(staff, 'Tiempo real conectado');
     const card = staff.getByRole('article').filter({ has: staff.getByRole('heading', { name: formatoFolio(order.numero_pedido), exact: true }) });
@@ -109,11 +111,17 @@ try {
     await card.getByRole('button', { name: 'Marcar listo', exact: true }).waitFor();
     await waitText(a, 'En preparación');
     await card.getByRole('button', { name: 'Marcar listo', exact: true }).click();
-    await card.getByRole('button', { name: 'Marcar entregado', exact: true }).waitFor();
     await waitText(a, 'Listo');
+    // HU-09: la entrega es del pedido completo, desde "Por entregar" (no desde el tablero de cocina).
+    const entrega = await staff.context().newPage();
+    await entrega.goto(`${base}/mesero/pedidos?entrega=todos`);
+    const porEntregar = entrega.getByRole('article', { name: `Pedido ${formatoFolio(order.numero_pedido)}`, exact: true });
+    await porEntregar.getByRole('button', { name: 'Marcar entregado', exact: true }).waitFor();
     await b.context().setOffline(true);
-    await card.getByRole('button', { name: 'Marcar entregado', exact: true }).click();
+    await porEntregar.getByRole('button', { name: 'Marcar entregado', exact: true }).click();
+    await porEntregar.waitFor({ state: 'detached' });
     await card.waitFor({ state: 'detached' });
+    await entrega.close();
     await b.context().setOffline(false);
     await b.getByRole('status', { name: /^(Tiempo real conectado|Actualización automática · cada 5 s)$/ }).waitFor();
     await b.waitForFunction(
@@ -121,7 +129,7 @@ try {
         formatoFolio(order.numero_pedido),
     );
     checks.push('Personal avanza estados; el cliente recibe los cambios; una reconexión recupera la entrega perdida.');
-    await staff.getByRole('link', { name: 'Ver desglose de comandas', exact: true }).click();
+    await staff.getByRole('link', { name: 'Ver desglose', exact: true }).click();
     await staff.waitForURL(`${base}/comandas/desglose`);
     await staff.getByRole('heading', { name: '¿En qué estado están los pedidos?' }).waitFor();
     await waitText(staff, 'Tiempo real conectado');

@@ -18,6 +18,11 @@ Route::get('/dashboard', function () {
 })->name('dashboard');
 
 Route::get('/comandas', function () {
+    // HU-09: mesero y cajero trabajan a nivel de pedido, en su propia pantalla.
+    if (in_array(auth()->user()?->rol, ['mesero', 'cajero'], true)) {
+        return new RedirectResponse('/mesero/pedidos');
+    }
+
     return Inertia::render('public/comandas');
 })->name('comandas');
 

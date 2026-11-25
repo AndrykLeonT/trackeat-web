@@ -16,6 +16,8 @@
     import Lock from '@lucide/svelte/icons/lock';
     import Receipt from '@lucide/svelte/icons/receipt';
     import Eraser from '@lucide/svelte/icons/eraser';
+    import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+    import HandPlatter from '@lucide/svelte/icons/hand-platter';
 
     let { onNavigate = null, nativeNavigation = false, currentUrl = null, userRole = null } = $props();
     const role = $derived(userRole ?? $page?.props?.auth?.user?.rol);
@@ -35,6 +37,10 @@
                     href: '/comandas',
                     icon: CookingPot,
                 },
+                // Módulo 2 · HU-04: historial por día, solo para clientes.
+                { name: 'Mis pedidos', href: '/mis-pedidos', icon: ClipboardList, roles: ['cliente'] },
+                // Módulo 2 · HU-09: pedidos por entregar, a nivel de pedido.
+                { name: 'Por entregar', href: '/mesero/pedidos', icon: HandPlatter, roles: ['mesero', 'cajero', 'administrador'] },
                 {
                     name: 'Personal',
                     href: '/personal/',

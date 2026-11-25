@@ -4,6 +4,9 @@ import Pusher from 'pusher-js';
 let csrf = '';
 export const states = { recibido: 'Recibido', preparacion: 'En preparación', listo: 'Listo', entregado: 'Entregado', cancelado: 'Cancelado' };
 export const staffRoles = ['administrador', 'cocinero', 'mesero', 'cajero'];
+// Nombre visible de cada estación y orden de los pasos de una comanda (cancelado es aparte: es final).
+export const stations = { cocina: 'Cocina', barra: 'Barra', general: 'General' };
+export const flow = ['recibido', 'preparacion', 'listo', 'entregado'];
 
 export async function api(path, { method = 'GET', body } = {}, retry = true) {
     const response = await fetch(`/api/${path}`, {

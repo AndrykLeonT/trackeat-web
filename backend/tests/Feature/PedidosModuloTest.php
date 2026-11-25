@@ -7,6 +7,7 @@ use App\Models\Categoria;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\User;
+use App\Services\CajaService;
 use App\Services\PedidoService;
 use Carbon\Carbon;
 use Database\Seeders\DemoSeeder;
@@ -14,8 +15,10 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 // Módulo 2 · Pedidos y comandas. T-08 completa este archivo con el resto de reglas del módulo.
@@ -281,6 +284,18 @@ class PedidosModuloTest extends TestCase
         return $pedido;
     }
 
+    /** Lleva todas las estaciones a "listo" (cocinero) y entrega el pedido completo (mesero), como en servicio. */
+    private function entregarCompleto(Pedido $pedido): Pedido
+    {
+        foreach ($pedido->estaciones()->pluck('estacion') as $estacion) {
+            foreach (['preparacion', 'listo'] as $estado) {
+                app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, $estacion, $estado);
+            }
+        }
+
+        return app(PedidoService::class)->entregar($this->usuario('mesero'), $pedido->id);
+    }
+
     private function avanzarApi(User $actor, Pedido $pedido, string $estacion, string $estado = 'preparacion')
     {
         return $this->actingAs($actor)->patchJson("/api/pedidos/{$pedido->id}/estacion", ['estacion' => $estacion, 'estado' => $estado]);
@@ -309,16 +324,19 @@ class PedidosModuloTest extends TestCase
         $this->avanzarApi($this->usuario('administrador'), $pedido, 'barra', 'listo')->assertOk();
     }
 
-    public function test_mesero_y_cajero_solo_entregan_y_el_cocinero_no_entrega(): void
+    public function test_mesero_y_cajero_no_preparan_y_nadie_entrega_una_estacion_suelta(): void
     {
         $pedido = $this->pedidoCocinaYBarra();
         $this->avanzarApi($this->usuario('mesero'), $pedido, 'cocina')->assertForbidden();
         $this->avanzarApi($this->usuario('cajero'), $pedido, 'cocina')->assertForbidden();
         $this->avanzarApi($this->usuario('cocinero'), $pedido, 'cocina')->assertOk();
         $this->avanzarApi($this->usuario('cocinero'), $pedido, 'cocina', 'listo')->assertOk();
-        $this->avanzarApi($this->usuario('cocinero'), $pedido, 'cocina', 'entregado')
-            ->assertForbidden()->assertJsonPath('message', 'El rol no puede realizar esta transición.');
-        $this->avanzarApi($this->usuario('cajero'), $pedido, 'cocina', 'entregado')->assertOk();
+        // HU-09: la entrega es por pedido completo; nadie, ni el administrador, entrega una estación.
+        foreach (['cocinero', 'cajero', 'mesero', 'administrador'] as $rol) {
+            $this->avanzarApi($this->usuario($rol), $pedido, 'cocina', 'entregado')
+                ->assertForbidden()->assertJsonPath('message', 'La entrega es por pedido completo.');
+        }
+        $this->assertSame('listo', $pedido->estaciones()->where('estacion', 'cocina')->value('estado'));
     }
 
     public function test_las_comandas_general_de_pedidos_anteriores_solo_las_avanza_el_cocinero_general(): void
@@ -454,12 +472,7 @@ class PedidosModuloTest extends TestCase
 
         // Al entregarse uno, el cliente vuelve a poder pedir.
         $pedido = Pedido::findOrFail($primero['id']);
-        foreach ($pedido->estaciones as $estacion) {
-            foreach (['preparacion', 'listo'] as $estado) {
-                app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, $estacion->estacion, $estado);
-            }
-            app(PedidoService::class)->avanzar($this->usuario('mesero'), $pedido->id, $estacion->estacion, 'entregado');
-        }
+        $this->entregarCompleto($pedido);
         $this->actingAs($cliente)->postJson('/api/pedidos', $this->cuerpoApi())->assertOk();
     }
 
@@ -485,6 +498,507 @@ class PedidosModuloTest extends TestCase
         $this->actingAs($this->usuario('cliente1'))->getJson('/api/sesion')
             ->assertJsonPath('limites', ['mesas_max' => 30, 'cantidad_max' => 100, 'total_max' => '5000.00']);
         $this->actingAs($this->usuario('mesero'))->getJson('/api/sesion')->assertJsonPath('limites.total_max', '20000.00');
+    }
+
+    // ---------- HU-02 + HU-03 · Resumen y seguimiento /pedidos/{id} ----------
+
+    public function test_la_pagina_del_pedido_trae_el_resumen_con_precios_congelados_y_estaciones(): void
+    {
+        $cliente = $this->crearUsuario('cliente_resumen', 'cliente');
+        $producto = Producto::orderByDesc('precio')->firstOrFail();
+        $pedido = $this->levantarPedido($cliente, ['tipo_entrega' => 'comer_aqui', 'num_mesa' => 7,
+            'items' => [['id_producto' => $producto->id, 'cantidad' => 2, 'notas' => 'Sin cebolla']]]);
+        $precio = $producto->precio;
+        // Si el precio cambia después, el pedido conserva el de cuando se ordenó.
+        $producto->forceFill(['precio' => '999.00'])->save();
+
+        $this->actingAs($cliente)->get("/pedidos/{$pedido->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('public/pedido', false)
+                ->where('pedido.numero_pedido', $pedido->numero_pedido)
+                ->where('pedido.tipo_entrega', 'comer_aqui')->where('pedido.num_mesa', 7)
+                ->where('pedido.items.0.cantidad', 2)->where('pedido.items.0.precio_unitario', $precio)
+                ->where('pedido.items.0.notas', 'Sin cebolla')->where('pedido.items.0.producto.nombre', $producto->nombre)
+                ->where('pedido.total', number_format(2 * (float) $precio, 2, '.', ''))
+                ->has('pedido.estaciones', 1)->where('pedido.estaciones.0.estado', 'recibido'));
+    }
+
+    public function test_solo_el_dueno_y_el_personal_abren_el_pedido(): void
+    {
+        $pedido = $this->levantarPedido($this->usuario('cliente1'));
+        $this->actingAs($this->usuario('cliente1'))->get("/pedidos/{$pedido->id}")->assertOk();
+        foreach (['mesero', 'cajero', 'cocinero', 'administrador'] as $rol) {
+            $this->actingAs($this->usuario($rol))->get("/pedidos/{$pedido->id}")->assertOk();
+        }
+        $this->actingAs($this->usuario('cliente2'))->get("/pedidos/{$pedido->id}")->assertNotFound();
+        $this->actingAs($this->usuario('cliente2'))->getJson("/api/pedidos/{$pedido->id}")->assertNotFound();
+        $this->actingAs($this->usuario('cliente1'))->get('/pedidos/99999999')->assertNotFound();
+    }
+
+    public function test_el_detalle_refleja_el_avance_por_estacion_y_los_estados_finales(): void
+    {
+        $cliente = $this->crearUsuario('cliente_seguimiento', 'cliente');
+        $pedido = $this->levantarPedido($cliente);
+        $estacion = $pedido->estaciones->first()->estacion;
+        app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, $estacion, 'preparacion');
+        $this->actingAs($cliente)->getJson("/api/pedidos/{$pedido->id}")->assertOk()
+            ->assertJsonPath('estado', 'preparacion')->assertJsonPath('estaciones.0.estado', 'preparacion');
+
+        // Un pedido cancelado se sigue pudiendo consultar y trae su motivo.
+        // Ya en preparación, solo el personal puede cancelar (HU-05) y debe dar un motivo.
+        app(PedidoService::class)->cancelar($this->usuario('mesero'), $pedido->id, 'Cliente se retiró');
+        $this->actingAs($cliente)->getJson("/api/pedidos/{$pedido->id}")->assertOk()
+            ->assertJsonPath('estado', 'cancelado')->assertJsonPath('motivo_cancelacion', 'Cliente se retiró')
+            ->assertJsonPath('estaciones.0.estado', 'cancelado');
+    }
+
+    // ---------- HU-04 · Mis pedidos por día ----------
+
+    /** Pedido del usuario creado en un instante local del restaurante (America/Mazatlan). */
+    private function pedidoCreadoEl(User $usuario, string $local): Pedido
+    {
+        $pedido = $this->levantarPedido($usuario);
+        $pedido->forceFill(['created_at' => Carbon::parse($local, 'America/Mazatlan')])->save();
+
+        return $pedido;
+    }
+
+    /** Cobra el pedido completo en un corte abierto en el instante local indicado. */
+    private function cobrarEnCorteAbiertoEl(Pedido $pedido, string $aperturaLocal, string $clave = 'cajero_historial')
+    {
+        $cajero = User::where('email', "$clave@prueba.test")->first() ?? $this->crearUsuario($clave, 'cajero');
+        $corte = app(CajaService::class)->abrir($cajero, '100');
+        $corte->forceFill(['fecha_apertura' => Carbon::parse($aperturaLocal, 'America/Mazatlan')])->save();
+
+        return app(CajaService::class)->cobrar($cajero, $pedido->id, $corte->id, 'efectivo', $pedido->total);
+    }
+
+    private function misPedidos(User $usuario, array $query = [])
+    {
+        return $this->actingAs($usuario)->get('/mis-pedidos'.($query ? '?'.http_build_query($query) : ''))->assertOk();
+    }
+
+    private function folios($respuesta): array
+    {
+        return array_column($respuesta->viewData('page')['props']['pedidos']['data'], 'numero_pedido');
+    }
+
+    public function test_un_pedido_cobrado_cuenta_en_el_dia_en_que_abrio_su_corte(): void
+    {
+        $cliente = $this->crearUsuario('cliente_historial', 'cliente');
+        // Turno que abre el 20 a las 18:00 y cobra un pedido hecho el 21 a las 00:30: el pedido es del 20.
+        $pedido = $this->pedidoCreadoEl($cliente, '2026-11-21 00:30:00');
+        $this->cobrarEnCorteAbiertoEl($pedido, '2026-11-20 18:00:00');
+
+        $this->assertSame([$pedido->numero_pedido], $this->folios($this->misPedidos($cliente, ['dia' => '2026-11-20'])));
+        $this->assertSame([], $this->folios($this->misPedidos($cliente, ['dia' => '2026-11-21'])));
+    }
+
+    public function test_un_pedido_sin_pago_cuenta_en_el_dia_en_que_se_creo(): void
+    {
+        $cliente = $this->crearUsuario('cliente_historial', 'cliente');
+        // 23:30 del 21 en Mazatlán ya es el 22 en UTC: debe contar como 21.
+        $pedido = $this->pedidoCreadoEl($cliente, '2026-11-21 23:30:00');
+
+        $this->assertSame([$pedido->numero_pedido], $this->folios($this->misPedidos($cliente, ['dia' => '2026-11-21'])));
+        $this->assertSame([], $this->folios($this->misPedidos($cliente, ['dia' => '2026-11-22'])));
+    }
+
+    public function test_un_pago_eliminado_no_define_el_dia(): void
+    {
+        $cliente = $this->crearUsuario('cliente_historial', 'cliente');
+        $pedido = $this->pedidoCreadoEl($cliente, '2026-11-21 12:00:00');
+        $pago = $this->cobrarEnCorteAbiertoEl($pedido, '2026-11-19 18:00:00');
+        app(CajaService::class)->corregir(User::where('email', 'cajero_historial@prueba.test')->firstOrFail(), $pago->id);
+
+        $this->assertSame([$pedido->numero_pedido], $this->folios($this->misPedidos($cliente, ['dia' => '2026-11-21'])));
+        $this->assertSame([], $this->folios($this->misPedidos($cliente, ['dia' => '2026-11-19'])));
+    }
+
+    public function test_por_defecto_muestra_hoy_y_un_dia_invalido_tambien(): void
+    {
+        $cliente = $this->crearUsuario('cliente_historial', 'cliente');
+        $ayer = $this->pedidoCreadoEl($cliente, now('America/Mazatlan')->subDay()->setTime(12, 0)->toDateTimeString());
+        $hoy = $this->levantarPedido($cliente);
+        $diaHoy = now('America/Mazatlan')->toDateString();
+
+        foreach ([[], ['dia' => 'hola'], ['dia' => '2026-02-30']] as $query) {
+            $respuesta = $this->misPedidos($cliente, $query)
+                ->assertInertia(fn (Assert $page) => $page->component('public/mis-pedidos', false)
+                    ->where('dia', $diaHoy)->where('hoy', $diaHoy));
+            $this->assertSame([$hoy->numero_pedido], $this->folios($respuesta));
+        }
+        $this->assertNotContains($ayer->numero_pedido, $this->folios($this->misPedidos($cliente)));
+    }
+
+    public function test_ver_todos_lista_solo_los_propios_del_mas_reciente_al_mas_antiguo(): void
+    {
+        $cliente = $this->crearUsuario('cliente_historial', 'cliente');
+        $viejo = $this->pedidoCreadoEl($cliente, '2026-10-01 12:00:00');
+        $nuevo = $this->levantarPedido($cliente);
+        $ajeno = $this->levantarPedido($this->usuario('cliente2'));
+
+        $folios = $this->folios($this->misPedidos($cliente, ['dia' => 'todos']));
+        $this->assertSame([$nuevo->numero_pedido, $viejo->numero_pedido], $folios);
+        $this->assertNotContains($ajeno->numero_pedido, $folios);
+    }
+
+    public function test_el_historial_se_pagina_de_20_en_20(): void
+    {
+        $cliente = $this->crearUsuario('cliente_historial', 'cliente');
+        foreach (range(1, 25) as $i) {
+            // Pedidos ya entregados, para no chocar con el límite de pedidos en curso (T-07).
+            $pedido = $this->pedidoCreadoEl($cliente, '2026-11-10 12:00:00');
+            $pedido->estaciones()->update(['estado' => 'entregado']);
+            $pedido->forceFill(['estado' => 'entregado'])->save();
+        }
+        $this->misPedidos($cliente, ['dia' => '2026-11-10'])->assertInertia(fn (Assert $page) => $page
+            ->has('pedidos.data', 20)->where('pedidos.current_page', 1)->where('pedidos.last_page', 2)->where('pedidos.total', 25));
+        $this->misPedidos($cliente, ['dia' => '2026-11-10', 'page' => 2])->assertInertia(fn (Assert $page) => $page
+            ->has('pedidos.data', 5)->where('pedidos.current_page', 2));
+    }
+
+    public function test_mis_pedidos_requiere_sesion(): void
+    {
+        $this->get('/mis-pedidos')->assertRedirect('/login');
+    }
+
+    // ---------- HU-05 · Cancelar pedido ----------
+
+    private function cancelarApi(User $actor, Pedido $pedido, ?string $motivo = null)
+    {
+        return $this->actingAs($actor)->postJson("/api/pedidos/{$pedido->id}/cancelar", $motivo ? ['motivo' => $motivo] : []);
+    }
+
+    public function test_el_cliente_cancela_su_pedido_mientras_todo_esta_en_recibido(): void
+    {
+        Event::fake([PedidoActualizado::class]);
+        $cliente = $this->crearUsuario('cliente_cancela', 'cliente');
+        $pedido = $this->levantarPedido($cliente);
+
+        $this->cancelarApi($cliente, $pedido)->assertOk()
+            ->assertJsonPath('estado', 'cancelado')->assertJsonPath('motivo_cancelacion', 'Cancelado por el cliente');
+        $this->assertSame(['cancelado'], $pedido->estaciones()->pluck('estado')->unique()->all());
+        // Queda en el historial con quién lo hizo, y se avisa en vivo.
+        $this->assertSame([$cliente->id], $pedido->historial()->where('estado_nuevo', 'cancelado')->pluck('cambiado_por')->unique()->all());
+        Event::assertDispatched(PedidoActualizado::class, fn ($e) => $e->pedido['id'] === $pedido->id && $e->pedido['estado'] === 'cancelado');
+    }
+
+    public function test_el_cliente_no_cancela_si_ya_se_empezo_a_preparar(): void
+    {
+        $cliente = $this->crearUsuario('cliente_cancela', 'cliente');
+        $producto = fn (string $estacion) => Producto::whereHas('categoria', fn ($q) => $q->where('estacion', $estacion))->firstOrFail()->id;
+        $pedido = $this->levantarPedido($cliente, ['items' => [['id_producto' => $producto('cocina'), 'cantidad' => 1], ['id_producto' => $producto('barra'), 'cantidad' => 1]]]);
+        // Basta con que UNA estación haya empezado.
+        app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, 'barra', 'preparacion');
+
+        $this->cancelarApi($cliente, $pedido)->assertForbidden()
+            ->assertJsonPath('message', 'Tu pedido ya se empezó a preparar. Pide ayuda al personal.');
+        $this->assertSame('recibido', $pedido->fresh()->estado);
+    }
+
+    public function test_un_cliente_no_cancela_el_pedido_de_otro(): void
+    {
+        $pedido = $this->levantarPedido($this->usuario('cliente1'));
+        $this->cancelarApi($this->usuario('cliente2'), $pedido)->assertNotFound();
+        try {
+            app(PedidoService::class)->cancelar($this->usuario('cliente2'), $pedido->id);
+            $this->fail('El servicio debe aplicar la política aunque no pase por el controlador.');
+        } catch (AuthorizationException $error) {
+            $this->assertSame(404, $error->status());
+        }
+        $this->assertSame('recibido', $pedido->fresh()->estado);
+    }
+
+    public function test_el_personal_cancela_hasta_antes_de_entregar_eligiendo_un_motivo(): void
+    {
+        foreach (['mesero', 'cajero', 'administrador'] as $rol) {
+            $pedido = $this->pedidoCocinaYBarra();
+            app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, 'cocina', 'preparacion');
+            app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, 'cocina', 'listo');
+
+            $this->cancelarApi($this->usuario($rol), $pedido)->assertUnprocessable()
+                ->assertJsonPath('errors.motivo.0', 'Elige el motivo de la cancelación.');
+            $this->cancelarApi($this->usuario($rol), $pedido, 'Porque sí')->assertUnprocessable()
+                ->assertJsonPath('errors.motivo.0', 'Elige un motivo de la lista.');
+            $this->cancelarApi($this->usuario($rol), $pedido, 'Producto agotado')->assertOk()
+                ->assertJsonPath('estado', 'cancelado')->assertJsonPath('motivo_cancelacion', 'Producto agotado');
+        }
+    }
+
+    public function test_el_cocinero_no_cancela(): void
+    {
+        $pedido = $this->pedidoCocinaYBarra();
+        $this->cancelarApi($this->usuario('cocinero'), $pedido, 'Producto agotado')->assertForbidden();
+        $this->assertSame('recibido', $pedido->fresh()->estado);
+    }
+
+    public function test_no_se_cancela_un_pedido_entregado_ni_uno_ya_cancelado(): void
+    {
+        $pedido = $this->entregarCompleto($this->pedidoCocinaYBarra());
+        $this->cancelarApi($this->usuario('administrador'), $pedido, 'Otro')->assertUnprocessable()->assertJsonValidationErrors('estado');
+
+        $otro = $this->pedidoCocinaYBarra();
+        $this->cancelarApi($this->usuario('mesero'), $otro, 'Pedido duplicado')->assertOk();
+        $this->cancelarApi($this->usuario('mesero'), $otro, 'Pedido duplicado')->assertUnprocessable()->assertJsonValidationErrors('pedido');
+    }
+
+    public function test_no_se_cancela_con_pagos_activos(): void
+    {
+        $pedido = $this->pedidoCocinaYBarra();
+        $this->cobrarEnCorteAbiertoEl($pedido, now('America/Mazatlan')->toDateTimeString());
+        $this->cancelarApi($this->usuario('mesero'), $pedido, 'Cliente se retiró')->assertUnprocessable()->assertJsonValidationErrors('pagos');
+        $this->assertSame('recibido', $pedido->fresh()->estado);
+    }
+
+    public function test_la_sesion_da_los_motivos_solo_al_personal_que_cancela(): void
+    {
+        $motivos = ['Cliente se retiró', 'Error en la captura', 'Producto agotado', 'Pedido duplicado', 'Demora excesiva', 'Otro'];
+        foreach (['mesero', 'cajero', 'administrador'] as $rol) {
+            $this->actingAs($this->usuario($rol))->getJson('/api/sesion')->assertJsonPath('motivos_cancelacion', $motivos);
+        }
+        foreach (['cliente1', 'cocinero'] as $clave) {
+            $this->actingAs($this->usuario($clave))->getJson('/api/sesion')->assertJsonPath('motivos_cancelacion', []);
+        }
+        foreach ($motivos as $motivo) {
+            $this->assertLessThanOrEqual(50, mb_strlen($motivo), 'La columna motivo_cancelacion es de 50 caracteres.');
+        }
+    }
+
+    // ---------- HU-06 · Tablero de comandas por estación ----------
+
+    private function tableroDe(User $actor, array $query = []): array
+    {
+        return $this->actingAs($actor)->getJson('/api/comandas'.($query ? '?'.http_build_query($query) : ''))->assertOk()->json();
+    }
+
+    /** Comandas del tablero que pertenecen a los pedidos indicados, como "folio|estacion". */
+    private function comandasDe(array $tablero, Pedido ...$pedidos): array
+    {
+        $ids = array_map(fn (Pedido $p) => $p->id, $pedidos);
+
+        return array_values(array_map(fn ($c) => $c['numero_pedido'].'|'.$c['estacion'],
+            array_filter($tablero['comandas'], fn ($c) => in_array($c['id_pedido'], $ids, true))));
+    }
+
+    public function test_el_cocinero_de_una_estacion_solo_recibe_sus_comandas_y_sus_productos(): void
+    {
+        $pedido = $this->pedidoCocinaYBarra();
+        $barra = $this->crearUsuario('cocinero_barra', 'cocinero', 'barra');
+
+        // Aunque pida la otra estación, el servidor le impone la suya.
+        foreach ([[], ['estacion' => 'cocina']] as $query) {
+            $tablero = $this->tableroDe($barra, $query);
+            $this->assertSame(['barra'], $tablero['estaciones']);
+            $this->assertSame([], array_values(array_filter($tablero['comandas'], fn ($c) => $c['estacion'] !== 'barra')));
+            $this->assertSame(["{$pedido->numero_pedido}|barra"], $this->comandasDe($tablero, $pedido));
+        }
+        $comanda = collect($this->tableroDe($barra)['comandas'])->firstWhere('id_pedido', $pedido->id);
+        $nombresBarra = Producto::whereHas('categoria', fn ($q) => $q->where('estacion', 'barra'))->pluck('nombre')->all();
+        $this->assertNotEmpty($comanda['items']);
+        foreach ($comanda['items'] as $item) {
+            $this->assertContains($item['nombre'], $nombresBarra, 'La comanda de barra no debe traer productos de cocina.');
+        }
+    }
+
+    public function test_el_cocinero_general_ve_las_dos_estaciones_como_comandas_separadas(): void
+    {
+        $pedido = $this->pedidoCocinaYBarra();
+        $tablero = $this->tableroDe($this->usuario('cocinero'), ['estacion' => 'barra']);
+        $this->assertNull($tablero['estaciones']);
+        $comandas = $this->comandasDe($tablero, $pedido);
+        sort($comandas);
+        $this->assertSame(["{$pedido->numero_pedido}|barra", "{$pedido->numero_pedido}|cocina"], $comandas);
+    }
+
+    public function test_el_administrador_ve_todas_y_puede_filtrar(): void
+    {
+        $pedido = $this->pedidoCocinaYBarra();
+        $admin = $this->usuario('administrador');
+        $this->assertCount(2, $this->comandasDe($this->tableroDe($admin), $pedido));
+        $filtrado = $this->tableroDe($admin, ['estacion' => 'barra']);
+        $this->assertSame(['barra'], $filtrado['estaciones']);
+        $this->assertSame(["{$pedido->numero_pedido}|barra"], $this->comandasDe($filtrado, $pedido));
+        // Un filtro desconocido equivale a "todas".
+        $this->assertCount(2, $this->comandasDe($this->tableroDe($admin, ['estacion' => 'postres']), $pedido));
+    }
+
+    public function test_el_tablero_de_comandas_es_solo_para_cocineros_y_administrador(): void
+    {
+        foreach (['mesero', 'cajero', 'cliente1'] as $clave) {
+            $this->actingAs($this->usuario($clave))->getJson('/api/comandas')->assertForbidden();
+        }
+        auth()->logout();
+        $this->getJson('/api/comandas')->assertUnauthorized();
+    }
+
+    public function test_cancelados_no_aparecen_y_entregados_solo_con_la_casilla_y_de_hoy(): void
+    {
+        $admin = $this->usuario('administrador');
+        $cancelado = $this->pedidoCocinaYBarra();
+        app(PedidoService::class)->cancelar($this->usuario('mesero'), $cancelado->id, 'Pedido duplicado');
+
+        $entregadoHoy = $this->entregarCompleto($this->pedidoCocinaYBarra());
+        $entregadoAyer = $this->entregarCompleto($this->pedidoCocinaYBarra());
+        $entregadoAyer->estaciones()->update(['updated_at' => now(config('trackeat.zona_folio'))->subDay()->setTime(12, 0)]);
+
+        $this->assertSame([], $this->comandasDe($this->tableroDe($admin), $cancelado, $entregadoHoy, $entregadoAyer));
+        $conEntregados = $this->tableroDe($admin, ['entregados' => 1]);
+        $this->assertSame([], $this->comandasDe($conEntregados, $cancelado, $entregadoAyer));
+        $this->assertCount(2, $this->comandasDe($conEntregados, $entregadoHoy));
+    }
+
+    public function test_las_comandas_van_de_la_mas_antigua_a_la_mas_nueva_y_traen_sus_notas(): void
+    {
+        $nuevo = $this->levantarPedido($this->usuario('mesero'), ['items' => [['id_producto' => Producto::firstOrFail()->id, 'cantidad' => 2, 'notas' => 'Sin cebolla']]]);
+        $viejo = $this->levantarPedido($this->usuario('mesero'));
+        $viejo->forceFill(['created_at' => now()->subMinutes(30)])->save();
+
+        $tablero = $this->tableroDe($this->usuario('administrador'));
+        $orden = array_values(array_filter(array_column($tablero['comandas'], 'id_pedido'), fn ($id) => in_array($id, [$nuevo->id, $viejo->id], true)));
+        $this->assertSame([$viejo->id, $nuevo->id], $orden);
+        $comanda = collect($tablero['comandas'])->firstWhere('id_pedido', $nuevo->id);
+        $this->assertSame([['cantidad' => 2, 'notas' => 'Sin cebolla']], array_map(fn ($i) => ['cantidad' => $i['cantidad'], 'notas' => $i['notas']], $comanda['items']));
+    }
+
+    // ---------- HU-08 · Captura de pedido por mesero o cajero ----------
+
+    public function test_el_cocinero_no_captura_pedidos(): void
+    {
+        $antes = Pedido::count();
+        $this->actingAs($this->usuario('cocinero'))->postJson('/api/pedidos', $this->cuerpoApi())->assertForbidden();
+        $this->assertSame($antes, Pedido::count());
+    }
+
+    public function test_el_pedido_del_mesero_llega_a_cocina_y_a_caja_con_su_folio_y_mesa(): void
+    {
+        $mesero = $this->usuario('mesero');
+        $pedido = $this->actingAs($mesero)->postJson('/api/pedidos', $this->cuerpoApi(['tipo_entrega' => 'comer_aqui', 'num_mesa' => 12]))
+            ->assertOk()->assertJsonPath('id_usuario', $mesero->id)->assertJsonPath('num_mesa', 12)->json();
+
+        $comanda = collect($this->tableroDe($this->usuario('cocinero'))['comandas'])->firstWhere('id_pedido', $pedido['id']);
+        $this->assertSame([$pedido['numero_pedido'], 'comer_aqui', 12], [$comanda['numero_pedido'], $comanda['tipo_entrega'], $comanda['num_mesa']]);
+
+        $this->actingAs($this->usuario('cajero'))->get('/caja')->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('caja/index', false)
+                ->where('pedidos', fn ($pedidos) => collect($pedidos)->contains('id', $pedido['id'])));
+    }
+
+    public function test_el_cajero_captura_un_pedido_para_llevar_a_su_nombre(): void
+    {
+        $cajero = $this->usuario('cajero');
+        $this->actingAs($cajero)->postJson('/api/pedidos', $this->cuerpoApi(['id_usuario' => $this->usuario('cliente1')->id]))
+            ->assertOk()->assertJsonPath('id_usuario', $cajero->id)->assertJsonPath('tipo_entrega', 'para_llevar')->assertJsonPath('num_mesa', null);
+    }
+
+    // ---------- HU-09 · Pedidos por entregar (todo o nada) ----------
+
+    private function porEntregar(User $actor, array $query = []): array
+    {
+        return $this->actingAs($actor)->getJson('/api/mesero/pedidos'.($query ? '?'.http_build_query($query) : ''))->assertOk()->json('pedidos');
+    }
+
+    private function listoPorCompleto(Pedido $pedido): Pedido
+    {
+        foreach ($pedido->estaciones()->pluck('estacion') as $estacion) {
+            foreach (['preparacion', 'listo'] as $estado) {
+                app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, $estacion, $estado);
+            }
+        }
+
+        return $pedido->fresh();
+    }
+
+    public function test_la_entrega_es_todo_o_nada(): void
+    {
+        Event::fake([PedidoActualizado::class]);
+        $pedido = $this->pedidoCocinaYBarra();
+        foreach (['preparacion', 'listo'] as $estado) {
+            app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, 'barra', $estado);
+        }
+        // Con cocina sin terminar, el pedido no se entrega (ni siquiera la barra que ya está lista).
+        $this->actingAs($this->usuario('mesero'))->postJson("/api/pedidos/{$pedido->id}/entregar")->assertUnprocessable()
+            ->assertJsonPath('errors.estado.0', 'El pedido todavía no está listo: todas sus estaciones deben estar listas.');
+        $this->assertSame(['barra' => 'listo', 'cocina' => 'recibido'], $pedido->estaciones()->orderBy('estacion')->pluck('estado', 'estacion')->all());
+
+        foreach (['preparacion', 'listo'] as $estado) {
+            app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, 'cocina', $estado);
+        }
+        $mesero = $this->usuario('mesero');
+        $this->actingAs($mesero)->postJson("/api/pedidos/{$pedido->id}/entregar")->assertOk()->assertJsonPath('estado', 'entregado');
+        $this->assertSame(['entregado'], $pedido->estaciones()->pluck('estado')->unique()->all());
+        $this->assertSame([$mesero->id], $pedido->historial()->where('estado_nuevo', 'entregado')->pluck('cambiado_por')->unique()->all());
+        $this->assertSame(2, $pedido->historial()->where('estado_nuevo', 'entregado')->count());
+        Event::assertDispatched(PedidoActualizado::class, fn ($e) => $e->pedido['id'] === $pedido->id && $e->pedido['estado'] === 'entregado');
+        // No se entrega dos veces.
+        $this->actingAs($mesero)->postJson("/api/pedidos/{$pedido->id}/entregar")->assertUnprocessable()->assertJsonPath('errors.estado.0', 'El pedido ya se entregó.');
+    }
+
+    public function test_entregan_mesero_cajero_y_administrador_pero_no_cocinero_ni_cliente(): void
+    {
+        foreach (['mesero', 'cajero', 'administrador'] as $rol) {
+            $pedido = $this->listoPorCompleto($this->pedidoCocinaYBarra());
+            $this->actingAs($this->usuario($rol))->postJson("/api/pedidos/{$pedido->id}/entregar")->assertOk();
+        }
+        $pedido = $this->listoPorCompleto($this->pedidoCocinaYBarra());
+        $this->actingAs($this->usuario('cocinero'))->postJson("/api/pedidos/{$pedido->id}/entregar")->assertForbidden();
+        $cliente = $this->crearUsuario('cliente_entrega', 'cliente');
+        $propio = $this->listoPorCompleto($this->levantarPedido($cliente));
+        $this->actingAs($cliente)->postJson("/api/pedidos/{$propio->id}/entregar")->assertForbidden();
+        $this->assertSame('listo', $propio->fresh()->estado);
+    }
+
+    public function test_por_entregar_filtra_comer_aqui_y_pone_los_listos_primero(): void
+    {
+        $mesero = $this->usuario('mesero');
+        $viejoEnPreparacion = $this->levantarPedido($mesero, ['tipo_entrega' => 'comer_aqui', 'num_mesa' => 1]);
+        $viejoEnPreparacion->forceFill(['created_at' => now()->subMinutes(40)])->save();
+        $nuevoListo = $this->listoPorCompleto($this->levantarPedido($mesero, ['tipo_entrega' => 'comer_aqui', 'num_mesa' => 2]));
+        $paraLlevar = $this->levantarPedido($mesero);
+        $entregado = $this->entregarCompleto($this->levantarPedido($mesero, ['tipo_entrega' => 'comer_aqui', 'num_mesa' => 3]));
+
+        $ids = fn (array $lista) => array_values(array_filter(array_column($lista, 'id'),
+            fn ($id) => in_array($id, [$viejoEnPreparacion->id, $nuevoListo->id, $paraLlevar->id, $entregado->id], true)));
+        // Por defecto solo comer aquí, el listo primero aunque sea más nuevo; sin entregados.
+        $this->assertSame([$nuevoListo->id, $viejoEnPreparacion->id], $ids($this->porEntregar($mesero)));
+        $this->assertSame([$nuevoListo->id, $viejoEnPreparacion->id, $paraLlevar->id], $ids($this->porEntregar($mesero, ['entrega' => 'todos'])));
+    }
+
+    public function test_por_entregar_trae_productos_con_su_estacion_y_estado_y_el_saldo(): void
+    {
+        $pedido = $this->pedidoCocinaYBarra();
+        foreach (['preparacion', 'listo'] as $estado) {
+            app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, 'barra', $estado);
+        }
+        $pagado = $this->listoPorCompleto($this->pedidoCocinaYBarra());
+        $this->cobrarEnCorteAbiertoEl($pagado, now('America/Mazatlan')->toDateTimeString());
+
+        $lista = collect($this->porEntregar($this->usuario('cajero'), ['entrega' => 'todos']))->keyBy('id');
+        $fila = $lista[$pedido->id];
+        $this->assertSame('recibido', $fila['estado'], 'El pedido no está listo hasta que todas las estaciones lo están.');
+        $this->assertSame(['barra' => 'listo', 'cocina' => 'recibido'], collect($fila['items'])->pluck('estado', 'estacion')->sortKeys()->all());
+        $this->assertSame($pedido->total, $fila['saldo']);
+        $this->assertSame('0.00', $lista[$pagado->id]['saldo']);
+    }
+
+    public function test_por_entregar_es_para_mesero_cajero_y_administrador(): void
+    {
+        foreach (['mesero', 'cajero', 'administrador'] as $rol) {
+            $this->actingAs($this->usuario($rol))->getJson('/api/mesero/pedidos')->assertOk();
+            $this->actingAs($this->usuario($rol))->get('/mesero/pedidos')->assertOk();
+        }
+        foreach (['cocinero', 'cliente1'] as $clave) {
+            $this->actingAs($this->usuario($clave))->getJson('/api/mesero/pedidos')->assertForbidden();
+            $this->actingAs($this->usuario($clave))->get('/mesero/pedidos')->assertForbidden();
+        }
+    }
+
+    public function test_mesero_y_cajero_que_entran_a_comandas_van_a_por_entregar(): void
+    {
+        foreach (['mesero', 'cajero'] as $rol) {
+            $this->actingAs($this->usuario($rol))->get('/comandas')->assertRedirect('/mesero/pedidos');
+        }
+        $this->actingAs($this->usuario('cocinero'))->get('/comandas')->assertOk();
+        $this->actingAs($this->usuario('administrador'))->get('/comandas')->assertOk();
     }
 
     public function test_la_estacion_no_se_puede_asignar_en_masa(): void

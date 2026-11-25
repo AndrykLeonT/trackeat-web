@@ -64,11 +64,20 @@ async function scenario(blockSocket) {
         for (const [button, state] of [
             ['Empezar a preparar', 'En preparación'],
             ['Marcar listo', 'Listo'],
-            ['Marcar entregado', 'Entregado'],
         ]) {
             await card.getByRole('button', { name: button, exact: true }).click();
             await row.getByText(new RegExp(`^${state} ·`)).waitFor();
         }
+        // HU-09: la entrega es del pedido completo, desde "Por entregar", en otra pestaña del mismo personal
+        // (el tablero de cocina no se recarga y debe ver salir la comanda en vivo).
+        const entrega = await staff.context().newPage();
+        await entrega.goto(`${base}/mesero/pedidos?entrega=todos`);
+        await entrega
+            .getByRole('article', { name: `Pedido ${formatoFolio(order.numero_pedido)}`, exact: true })
+            .getByRole('button', { name: 'Marcar entregado', exact: true })
+            .click();
+        await row.getByText(/^Entregado ·/).waitFor();
+        await entrega.close();
         await card.waitFor({ state: 'detached' });
         assert.equal(navigations, 0, 'No debe recargarse ninguna pantalla');
         assert.deepEqual(errors, []);

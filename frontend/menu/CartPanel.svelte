@@ -31,6 +31,12 @@
         total = 0,
         cartChanges = [],
         needsReview = false,
+        // HU-08: el personal (salvo el cocinero) también captura pedidos; quedan a su nombre (lo fija el servidor).
+        puedeOrdenar = false,
+        personal = false,
+        rolPersonal = null,
+        // Último pedido capturado por el personal: se queda en el menú para el siguiente.
+        confirmacion = null,
         onChangeCart,
         onUpdateQuantity,
         onRemove,
@@ -42,7 +48,7 @@
     const itemCount = $derived(cart.items.reduce((sum, item) => sum + Math.max(0, Number(item.cantidad) || 0), 0));
     const hasUnavailable = $derived(cart.items.some((item) => item.unavailable));
     const submitDisabled = $derived(
-        !initialized || !online || !activeUser || user?.rol !== 'cliente' || !cart.items.length || overLimit || busy || needsReview || hasUnavailable,
+        !initialized || !online || !activeUser || !puedeOrdenar || !cart.items.length || overLimit || busy || needsReview || hasUnavailable,
     );
 
     function productImage(item) {
@@ -68,7 +74,7 @@
             </div>
             <div class="min-w-0">
                 <div class="flex items-center gap-2">
-                    <h2 id="cart-title" class="truncate text-base font-bold text-card-foreground">Tu carrito</h2>
+                    <h2 id="cart-title" class="truncate text-base font-bold text-card-foreground">{personal ? 'Nuevo pedido' : 'Tu carrito'}</h2>
                     {#if itemCount > 0}
                         <span
                             class="inline-flex shrink-0 items-center rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground tabular-nums"
@@ -103,6 +109,26 @@
 
     <form onsubmit={onSubmit} class="flex min-h-0 flex-1 flex-col">
         <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+            {#if personal}
+                <p class="flex items-start gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-foreground" data-testid="modo-captura">
+                    <Info class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                    <span>Capturando como <strong>{rolPersonal}</strong> · el pedido quedará a tu nombre.</span>
+                </p>
+            {/if}
+            {#if confirmacion}
+                <div
+                    role="status"
+                    class="flex items-start gap-2.5 rounded-xl border border-emerald-600/30 bg-emerald-600/10 p-3.5 text-sm text-emerald-800 dark:text-emerald-300"
+                >
+                    <Check class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    <div class="min-w-0">
+                        <p class="font-semibold">
+                            Pedido {confirmacion.folio}{confirmacion.mesa ? ` · Mesa ${confirmacion.mesa}` : ' · Para llevar'} confirmado.
+                        </p>
+                        <a href={`/pedidos/${confirmacion.id}`} class="text-xs font-semibold underline underline-offset-4">Ver seguimiento</a>
+                    </div>
+                </div>
+            {/if}
             {#if cartChanges.length}
                 <div role="status" class="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-sm">
                     <div class="flex items-start gap-2.5">
@@ -333,14 +359,14 @@
                     <WifiOff class="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden="true" />
                     <p>Sin conexión. Tu carrito queda guardado para enviarlo al volver la red.</p>
                 </div>
-            {:else if user && user.rol !== 'cliente'}
+            {:else if user && !puedeOrdenar}
                 <div class="flex items-start gap-2 rounded-xl border border-border bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
                     <Info class="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden="true" />
-                    <p>Para pedir, usa una cuenta cliente o el enlace de demostración en otro navegador.</p>
+                    <p>Los cocineros no capturan pedidos.</p>
                 </div>
             {:else if initialized && !user}
                 <div class="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/60 p-3 text-xs text-muted-foreground">
-                    <p class="leading-relaxed">Inicia sesión con tu cuenta cliente para confirmar.</p>
+                    <p class="leading-relaxed">Inicia sesión para confirmar el pedido.</p>
                     <a
                         href="/login"
                         class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent"

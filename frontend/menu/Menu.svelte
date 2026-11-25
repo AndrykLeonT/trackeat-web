@@ -6,7 +6,6 @@
     import { prepareOffline, downloadGalleries, galleryReady } from './offline.js';
     import * as db from './db.js';
     import logo from '@/assets/images/logo.png';
-    import ArrowRight from '@lucide/svelte/icons/arrow-right';
     import CheckCircle2 from '@lucide/svelte/icons/circle-check';
     import RefreshCw from '@lucide/svelte/icons/refresh-cw';
     import Utensils from '@lucide/svelte/icons/utensils';
@@ -40,7 +39,6 @@
     let selectedImage = $state(0);
     let cartChanges = $state([]);
     let needsReview = $state(false);
-    let confirmedOrder = $state(null);
     let lastUpdated = $state('');
     let error = $state('');
     let message = $state('');
@@ -49,6 +47,33 @@
     const total = $derived(cart.items.reduce((sum, item) => sum + Math.max(0, Number(item.cantidad) || 0) * Number(item.precio), 0));
     const overLimit = $derived(total > Number(limites.total_max));
     const activeUser = $derived(user && (!user.demo_expires_at || Date.parse(user.demo_expires_at) > Date.now()));
+    // HU-08: el personal (salvo el cocinero) también captura pedidos aquí; quedan a su nombre (lo fija el servidor).
+    const rolesPersonal = { mesero: 'Mesero', cajero: 'Cajero', administrador: 'Administrador' };
+    const personal = $derived(user?.rol in rolesPersonal);
+    const puedeOrdenar = $derived(user?.rol === 'cliente' || personal);
+    // Último pedido capturado por el personal: se queda en el menú para capturar el siguiente.
+    let confirmacion = $state(null);
+    function entregaPorDefecto() {
+        return user?.rol === 'mesero' ? 'comer_aqui' : 'para_llevar';
+    }
+    // Carrito nuevo de quien tiene la sesión, con la entrega habitual de su rol (mesero: mesa; cajero: teléfono).
+    function nuevoCarrito() {
+        return { ...emptyCart(), owner: user?.id ?? null, tipo_entrega: entregaPorDefecto() };
+    }
+    // El carrito vive en el navegador (IndexedDB), no en la cuenta: en un equipo compartido, el carrito de otra
+    // persona se descarta en vez de heredarse. Uno sin dueño (anterior a este cambio) se adopta una vez.
+    async function adoptarCarrito() {
+        if (!user) return;
+        if (cart.owner != null && cart.owner !== user.id) {
+            cart = nuevoCarrito();
+            needsReview = false;
+            cartChanges = [];
+        } else {
+            cart.owner = user.id;
+            if (!cart.items.length && !cart.pending) cart.tipo_entrega = entregaPorDefecto();
+        }
+        await persist();
+    }
     let searchVersion = 0;
 
     async function openDetail(id, push = true) {
@@ -137,6 +162,7 @@
             const data = await session();
             user = data.user;
             if (data.limites) limites = data.limites;
+            await adoptarCarrito();
             status(user ? 'Conectado al servidor' : 'Inicia sesión para pedir', !!user);
         } catch (e) {
             error = `Se conserva el catálogo local. ${e.message}`;
@@ -238,10 +264,12 @@
     }
     async function send(event) {
         event.preventDefault();
-        if (!online || !activeUser || !cart.items.length || overLimit || busy || needsReview || cart.items.some((item) => item.unavailable)) return;
+        if (!online || !activeUser || !puedeOrdenar || !cart.items.length || overLimit || busy || needsReview || cart.items.some((item) => item.unavailable))
+            return;
         busy = true;
         error = '';
         message = '';
+        confirmacion = null;
         try {
             // Persist the exact request before sending. A lost response can safely be retried.
             cart.requestId ||= crypto.randomUUID();
@@ -261,12 +289,18 @@
                     })),
                 },
             });
-            cart = emptyCart();
+            cart = nuevoCarrito();
             await persist();
-            message = `Pedido confirmado: ${formatoFolio(order.numero_pedido)}. Total: $${Number(order.total).toFixed(2)} MXN.`;
-            confirmedOrder = order.id;
             needsReview = false;
             cartChanges = [];
+            if (personal) {
+                // HU-08: el personal se queda en el menú, con el carrito vacío, listo para el siguiente pedido.
+                confirmacion = { id: order.id, folio: formatoFolio(order.numero_pedido), mesa: order.num_mesa };
+                return;
+            }
+            message = `Pedido confirmado: ${formatoFolio(order.numero_pedido)}. Abriendo el seguimiento…`;
+            // HU-02: el carrito vacío ya quedó guardado; un reintento devolvería este mismo pedido.
+            location.assign(`/pedidos/${order.id}`);
         } catch (e) {
             if ([401, 403, 409, 422, 429].includes(e.status)) {
                 cart.pending = false;
@@ -286,7 +320,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
             <div>
                 <h1 class="flex items-center gap-2 text-2xl font-bold"><Utensils class="size-6 text-primary" />Menú Digital</h1>
-                <p class="mt-1 text-sm text-muted-foreground">Elige tus productos y confirma tu pedido. Consulta su seguimiento en Comandas.</p>
+                <p class="mt-1 text-sm text-muted-foreground">Elige tus productos y confirma tu pedido. Consulta su seguimiento en Mis pedidos.</p>
             </div>
             {#if user}<p class="text-sm">{user.name}</p>{:else}<a
                     href="/login"
@@ -315,20 +349,14 @@
         {#if !online}<p class="rounded-xl border border-border bg-muted p-3 text-sm">
                 Sin conexión: puedes consultar el menú y preparar tu carrito. Confirma el envío cuando vuelva la red.
             </p>{/if}
-        {#if message || confirmedOrder}
-            <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
+        <!-- Diseño de main (recuadro con ícono). Sin enlace: el cliente pasa directo a /pedidos/{id} (HU-02) y el
+             personal ve su confirmación con "Ver seguimiento" dentro del carrito (HU-08). -->
+        {#if message}
+            <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
                 <p role="status" class="flex min-w-0 items-center gap-2 text-sm font-medium break-words text-foreground">
                     <CheckCircle2 class="size-4 shrink-0 text-primary" aria-hidden="true" />
                     <span>{message}</span>
                 </p>
-                {#if confirmedOrder}
-                    <a
-                        href={`/pedidos/${confirmedOrder}`}
-                        class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
-                    >
-                        Ver seguimiento del pedido<ArrowRight class="size-3.5" aria-hidden="true" /></a
-                    >
-                {/if}
             </div>
         {:else}
             <p role="status" class="sr-only">{message}</p>
@@ -446,6 +474,7 @@
                         </p>{/each}
                 </div>
             </section>
+            <!-- Carrito rediseñado en main (CartPanel) + reglas de HU-08: el personal también captura pedidos. -->
             <CartPanel
                 bind:cart
                 {catalog}
@@ -459,6 +488,10 @@
                 {total}
                 {cartChanges}
                 {needsReview}
+                {puedeOrdenar}
+                {personal}
+                rolPersonal={rolesPersonal[user?.rol] ?? null}
+                {confirmacion}
                 onChangeCart={changeCart}
                 onUpdateQuantity={updateQuantity}
                 onRemove={remove}

@@ -51,7 +51,7 @@ Requisitos del curso que cubre: **Datos en el navegador** (carrito en IndexedDB,
 | RNF-01 | El estado global del pedido se deriva de sus estaciones y nunca se edita directo: sigue a la estación más atrasada. | Hecho (`PedidoService::avanzar`) |
 | RNF-02 | El precio de cada ítem se congela al ordenar (`items_pedido.precio_unitario`) y el servidor recalcula el total; el cliente no puede enviar precios ni total. | Hecho |
 | RNF-03 | Cada cambio de estado se registra en `historial_estados` con estación, estado anterior, estado nuevo, quién y cuándo. | Hecho |
-| RNF-04 | Flujo de una estación: `recibido → preparacion → listo → entregado`. Solo se avanza al siguiente estado; no se regresa. `cancelado` es final. | Hecho |
+| RNF-04 | Flujo de una estación: `recibido → preparacion → listo → entregado`. Solo se avanza al siguiente estado; no se regresa. `cancelado` es final. El paso a `entregado` es del pedido completo (HU-09), nunca de una estación sola. | Hecho |
 | RNF-05 | Un reintento con el mismo `client_request_id` no crea un segundo pedido (bloqueo `pg_advisory_xact_lock` dentro de la transacción). | Hecho para todos los roles: el dueño siempre existe, así que el índice único `(id_usuario, client_request_id)` cubre también al personal (T-05) |
 | RNF-06 | Los eventos se publican después del commit por la cola; solo llevan id, folio, estado y fecha. El detalle se pide por HTTP con autorización. El frontend tiene sondeo de 5 s como respaldo. | Hecho |
 | RNF-07 | Autorización por objeto: el personal solo puede avanzar pedidos de su sala/restaurante y, el cocinero, solo su estación (superficie A01). | Hecho (T-06): `PedidoPolicy@avanzar`, llamada desde `PedidoService::avanzar` con el pedido bloqueado y el usuario releído. 404 si el pedido no le corresponde; 403 con mensaje si el rol o la estación no son suyos. El personal del restaurante (sin sala) opera también los pedidos de las salas de demostración. |
@@ -76,17 +76,18 @@ Estas decisiones cambian o completan lo documentado antes. Donde contradicen a `
 | Cocinero sin estación (2026-11-25) | No existe. Al crear un cocinero (o cambiarle el rol a cocinero) sin indicar estación, PostgreSQL le asigna `general` con un trigger; si se indica `cocina` o `barra`, se respeta. Un CHECK impide que un cocinero quede con estación nula. Los cocineros que ya existían sin estación pasaron a `general` (migración `2026_11_25_000001`). |
 | Estaciones de producto (2026-11-24) | Las categorías, y por herencia sus productos, solo se preparan en `cocina` (alimentos) o `barra` (bebidas). `general` deja de ser estación de producto: ningún producto se asigna a `general`. Las categorías que eran `general` se reclasificaron por nombre (bebidas a `barra`, el resto a `cocina`). Las filas históricas de `pedidos_estacion` e `items_pedido` conservan `general` (esa tabla es inmutable por trigger); ya no se crean nuevas. |
 | Tablero | Columnas `recibido`, `preparacion`, `listo`. Un pedido sigue visible en `listo` hasta que se entrega; una casilla "Mostrar entregados" permite consultarlos. |
+| **Vistas por rol** (2026-11-25) | El tablero de **comandas** (una tarjeta por pedido y estación) es para cocineros y el administrador; el administrador ve todo como un cocinero general y puede filtrar por estación. Mesero y cajero trabajan a **nivel de pedido**, con la opción de desplegar cada producto y sus detalles, en una pantalla aparte (HU-09). La barra lateral no cambia: oculta por rol solo Caja y Administración, como antes. |
 | **Dueño del pedido** (2026-11-24) | `pedidos.id_usuario` es un **único campo, obligatorio**, y significa **quién levantó el pedido**. Si es un cliente, el pedido se hizo en la web. Si es mesero, cajero o administrador, lo capturó el personal y **no se vincula ningún cliente**. No hay búsqueda de clientes ni pedidos sin dueño; el servicio fija el dueño con el usuario que hace la petición y nadie puede registrarlo a nombre de otra cuenta. **Sustituye** a la decisión del 23 de noviembre de "pedidos sin cuenta" con `id_usuario` nullable (la migración de T-02 se revierte con una migración nueva). |
 | **Límites del pedido** (2026-11-25, T-07) | Cantidad por producto ≤ 100; renglones por pedido ≤ 50; total ≤ $5,000 MXN si lo levanta un cliente y ≤ $20,000 MXN si lo levanta el personal; mesa de 1 a 30; un cliente tiene como máximo 3 pedidos en curso (`recibido`, `preparacion`, `listo`), el personal no tiene límite. Todo configurable por variables `TRACKEAT_*`. El reintento de un pedido se resuelve antes del límite, y el conteo usa un bloqueo exclusivo del usuario para que pedidos simultáneos no lo rebasen. |
 | Captura del mesero | Reutiliza la misma pantalla del menú y carrito. |
 | Vista del mesero | Por defecto, pedidos para comer aquí; con opción de ver todos, incluidos los para llevar. |
 | Entrega y cobro | Mesero y cajero pueden marcar **entregado** cualquier pedido. Solo el cajero puede **cobrar** (marcar pagado, en el módulo 3). |
+| **Entrega todo o nada** (2026-11-25, HU-09) | La entrega es **a nivel de pedido**: un pedido solo está "listo" cuando todas sus estaciones lo están, y se entrega completo (`POST /api/pedidos/{id}/entregar`, `PedidoService::entregar`), en una transacción que pasa todas las estaciones a `entregado` y registra cada una en el historial. **Nadie entrega una estación suelta**: `PedidoPolicy@avanzar` rechaza `entregado` ("La entrega es por pedido completo"); por estación solo se prepara y se marca listo (cocinero y administrador). Sustituye lo que T-06 permitía (mesero/cajero entregaban por estación). |
 | Admin de pedidos | Filtros por estado, fecha, mesa, tipo de entrega, cliente y corte. Sin exportación. |
 
 ### Supuestos por confirmar
 
-- El motivo obligatorio de cancelación se guarda en `pedidos.motivo_cancelacion` (columna agregada en T-02, `string(50)` nullable). La lista de motivos se define en HU-05.
-- Un pedido que todavía no tiene pago (y por tanto no tiene corte) aparece en el historial en el día en que se creó.
+- El motivo obligatorio de cancelación se guarda en `pedidos.motivo_cancelacion` (columna agregada en T-02, `string(50)` nullable). Lista definida en HU-05 (2026-11-25, `config('trackeat.pedidos.motivos_cancelacion')`): Cliente se retiró, Error en la captura, Producto agotado, Pedido duplicado, Demora excesiva, Otro. Cuando cancela el cliente se guarda "Cancelado por el cliente". No se cancela si alguna estación ya está entregada.
 
 ## 5. Historias de usuario
 
@@ -127,7 +128,8 @@ Prioridad: Must · Requisito: RF-20.
 Criterios de aceptación:
 - `/mis-pedidos` muestra por defecto el día actual; puedo elegir otro día o ver todos.
 - El día de un pedido sale del corte en que se cobró (corte → pagos → pedidos); la página no menciona cortes.
-- Un pedido aún sin pago aparece en el día en que se creó (supuesto por confirmar).
+- Un pedido aún sin pago (o cancelado sin pagar) aparece en el día en que se creó. Confirmado el 2026-11-25.
+- El día de un pedido cobrado es el de la **apertura** del primer corte con un pago activo que no sea reembolso (un turno que cruza la medianoche cuenta en el día en que abrió). Confirmado el 2026-11-25.
 - Cada fila muestra folio, fecha, estado y total; los más recientes primero, con paginación.
 - Al abrir uno voy a `/pedidos/{id}` con sus productos.
 - Solo veo mis propios pedidos.
@@ -155,7 +157,11 @@ Criterios de aceptación:
 
 ### HU-07 · Avanzar el estado de mi estación
 **Como** cocinero, **quiero** avanzar el estado de mi estación y que quede registrado, **para** que el resto del equipo sepa cómo va cada pedido.
-Prioridad: Must · Requisito: RF-13 · **Estado: parcial** (falta la autorización de T-06).
+Prioridad: Must · Requisito: RF-13 · **Estado: hecho (2026-11-25)**, cerrada con T-06 y HU-06. Cobertura de cada criterio:
+- Solo se avanza al siguiente estado y no se regresa: `LiveOrdersTest::test_staff_transitions_obey_station_flow_and_update_real_chart`, `TrackEatTest::test_global_state_follows_slowest_station_and_records_actor`.
+- El cocinero no entrega ni avanza una estación ajena: `PedidosModuloTest::test_el_cocinero_de_cocina_o_barra_solo_avanza_su_estacion`, `test_mesero_y_cajero_solo_entregan_y_el_cocinero_no_entrega`, `test_la_regla_de_estacion_no_se_salta_llamando_al_servicio`; en pantalla, `comanda-card` solo ofrece el botón de la estación propia (validado en navegador con un cocinero de barra).
+- Un pedido de otra sala de demostración responde 404: `PedidosModuloTest::test_un_usuario_de_una_sala_demo_no_toca_pedidos_de_otra_sala`, `LiveOrdersTest::test_client_cannot_see_others_orders_change_states_or_open_staff_channel`.
+- Cada cambio queda en `historial_estados` con quién y cuándo: `TrackEatTest::test_global_state_follows_slowest_station_and_records_actor`.
 
 Criterios de aceptación:
 - Solo se avanza al siguiente estado (`recibido → preparacion → listo`); no se regresa.
@@ -205,13 +211,13 @@ Criterios de aceptación:
 | 5 | T-05 | Dueño del pedido = quien lo levanta (cliente en la web; mesero, cajero o administrador al capturar), `id_usuario` obligatorio de nuevo. Sin búsqueda de clientes ni pedidos sin dueño. | 1 · Servidor | Must | T-02 |
 | 6 | T-06 | `PedidoPolicy@avanzar` (A01): sala/restaurante, transición por rol, estación del cocinero; 404 si no le pertenece. **Hecho (2026-11-25).** El frontend (`comanda-card`) oculta los botones de estaciones ajenas usando `estacion` de `/api/sesion`. | 1 · Servidor | Must | T-03 |
 | 7 | T-07 | Límites de negocio al crear pedido (A08) en config; unificar límites controlador/servicio. **Hecho (2026-11-25).** | 1 · Servidor | Must | T-01 |
-| 8 | HU-02 + HU-03 | Página `/pedidos/{id}` con resumen y seguimiento | 2 · Cliente | Must | T-04 |
-| 9 | HU-04 | Mis pedidos por día | 2 · Cliente | Must | HU-02 |
-| 10 | HU-05 | Cancelar pedido | 2 · Cliente | Should | T-02, HU-02 |
-| 11 | HU-06 | Tablero de comandas por estación | 3 · Personal | Must | T-03, T-06 |
-| 12 | HU-07 | Avanzar estado de mi estación (se cierra con T-06) | 3 · Personal | Must | T-06 |
-| 13 | HU-08 | Captura de pedido por mesero o cajero | 3 · Personal | Must | T-05, HU-02 |
-| 14 | HU-09 | Pedidos por entregar | 3 · Personal | Should | HU-06 |
+| 8 | HU-02 + HU-03 | Página `/pedidos/{id}` con resumen y seguimiento. **Hecho (2026-11-25):** el menú redirige al confirmar; la página muestra folio, fecha, mesa, productos con precio congelado y subtotal, notas, total, barra de avance por estación, estado de la conexión (tiempo real o sondeo de 5 s) y avisos finales de entregado/cancelado (con motivo); al terminar deja de consultar. | 2 · Cliente | Must | T-04 |
+| 9 | HU-04 | Mis pedidos por día. **Hecho (2026-11-25):** `/mis-pedidos` (Inertia, paginado de 20), consulta en `App\Support\HistorialPedidos` (reutilizable por HU-10), enlace en la barra lateral solo para clientes. | 2 · Cliente | Must | HU-02 |
+| 10 | HU-05 | Cancelar pedido. **Hecho (2026-11-25):** `POST /api/pedidos/{id}/cancelar`, `PedidoPolicy@cancelar`, motivo obligatorio para el personal, componente `cancelar-pedido.svelte` en el seguimiento y en el tablero. | 2 · Cliente | Should | T-02, HU-02 |
+| 11 | HU-06 | Tablero de comandas por estación. **Hecho (2026-11-25):** `/comandas` para cocineros y administrador es un tablero de columnas donde cada tarjeta es una comanda (pedido + estación) con solo sus productos y notas; `GET /api/comandas` (`App\Support\TableroComandas`) impone la estación del cocinero; el administrador ve todo como un cocinero general y filtra; "Mostrar entregados" = entregadas hoy (máx. 50). Mesero y cajero conservan en `/comandas` su vista por pedido (`pedido-card`) hasta HU-09; el cliente ve un aviso con enlace a Mis pedidos. | 3 · Personal | Must | T-03, T-06 |
+| 12 | HU-07 | Avanzar estado de mi estación (se cierra con T-06). **Hecho (2026-11-25):** sin código nuevo; criterios verificados contra pruebas existentes (ver la historia). | 3 · Personal | Must | T-06 |
+| 13 | HU-08 | Captura de pedido por mesero o cajero. **Hecho (2026-11-25):** el menú acepta pedidos de mesero, cajero y administrador (el cocinero no); modo "Nuevo pedido · Capturando como …"; entrega por defecto según rol (mesero: comer aquí; cajero y admin: para llevar); al confirmar, el personal se queda en el menú con el aviso del folio y "Ver seguimiento"; el carrito guarda su dueño y se descarta si entra otra persona en el mismo navegador; botón "Capturar pedido" en `/caja` y en la vista del mesero. | 3 · Personal | Must | T-05, HU-02 |
+| 14 | HU-09 | Pedidos por entregar. **Hecho (2026-11-25):** `/mesero/pedidos` para mesero, cajero y administrador (enlace "Por entregar"; `/comandas` redirige a mesero y cajero); tarjetas por pedido desplegables con el estado de cada producto; filtro comer aquí / todos; listos primero; "Marcar entregado" solo con el pedido listo (todo o nada); el cajero ve el saldo y "Cobrar". Consulta en `App\Support\PedidosPorEntregar`. | 3 · Personal | Should | HU-06 |
 | 15 | HU-10 | Admin: pedidos con filtros y bitácora | 3 · Personal | Should | T-02 |
 | 16 | T-08 | `tests/Feature/PedidosModuloTest.php`: folio, dueño del pedido, A01, A08, cancelación, historial, filtros; todo en verde | 4 · Cierre | Must | Fases 1–3 |
 | 17 | T-09 | Avisar a los módulos 3 y 4 (en caja la etiqueta "Cliente" muestra al dueño del pedido, que en pedidos del personal es quien lo levantó; folio nuevo; `users.estacion`) y probar el flujo completo | 4 · Cierre | Should | T-02, T-04 |
