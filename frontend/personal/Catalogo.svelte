@@ -2,6 +2,7 @@
     import { onMount, tick } from 'svelte';
     import AppLayout from '../src/layouts/AppLayout.svelte';
     import { session } from '../src/lib/trackeat.js';
+    import { rolesPersonal } from '../src/lib/inicio.js';
     import Users from '@lucide/svelte/icons/users';
     import UserRound from '@lucide/svelte/icons/user-round';
     import Plus from '@lucide/svelte/icons/plus';
@@ -26,6 +27,20 @@
     let online = $state(true);
     let user = $state(null);
     let logoutToken = $state('');
+    // Acceso (solo el personal). Esta página es estática y sus datos viven en el navegador, así que el bloqueo es en pantalla.
+    // Con conexión manda la sesión del servidor; sin conexión se usa el último rol conocido en este navegador.
+    const ROL_GUARDADO = 'trackeat-ultimo-rol';
+    const leerRolGuardado = () => {
+        try {
+            return localStorage.getItem(ROL_GUARDADO);
+        } catch {
+            return null;
+        }
+    };
+    let sesionVerificada = $state(false);
+    let rolGuardado = $state(leerRolGuardado());
+    const rolActual = $derived(sesionVerificada ? (user?.rol ?? null) : rolGuardado);
+    const permitido = $derived(rolActual !== null && rolesPersonal.includes(rolActual));
     let offlineError = $state('');
     let detailRecord = $state(null);
     let deletingRecord = $state(null);
@@ -79,6 +94,17 @@
             if (!alive || version !== sessionVersion) return;
             user = data?.user ?? null;
             logoutToken = data?.csrf ?? '';
+            // La respuesta del servidor manda: se recuerda el rol (o su ausencia) para cuando no haya conexión.
+            if (data) {
+                sesionVerificada = true;
+                try {
+                    if (user?.rol) localStorage.setItem(ROL_GUARDADO, user.rol);
+                    else localStorage.removeItem(ROL_GUARDADO);
+                } catch {
+                    // Sin almacenamiento disponible: solo se pierde el respaldo sin conexión.
+                }
+                rolGuardado = user?.rol ?? null;
+            }
         }
 
         const resume = (event) => {
@@ -270,6 +296,17 @@
     connectionLabel={online ? 'Con conexión' : 'Sin conexión'}
     contentId="contenido"
 >
+    {#if !permitido}
+        <section class="mx-auto max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6" role="alert">
+            <h1 class="text-2xl font-bold">Acceso denegado</h1>
+            <p class="text-muted-foreground">El catálogo de personal es solo para el personal del restaurante.</p>
+            {#if sesionVerificada && !user}
+                <a href="/login" class="font-medium underline">Iniciar sesión</a>
+            {:else}
+                <a href="/menu/" class="font-medium underline">Ir al menú</a>
+            {/if}
+        </section>
+    {:else}
     <div class="personal-catalog">
         <div class="page-heading">
             <div>
@@ -515,6 +552,7 @@
             </div>
         </div>
     </div>
+    {/if}
 </AppLayout>
 
 <dialog

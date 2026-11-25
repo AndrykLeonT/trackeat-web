@@ -2,7 +2,7 @@
     import logo from '../../assets/images/logo.png';
     import Menu from '@lucide/svelte/icons/menu';
     import UserRound from '@lucide/svelte/icons/user-round';
-    import { Link } from '@inertiajs/svelte';
+    import { inicioPorRol } from '@/lib/inicio';
 
     let {
         onToggleMobileMenu = () => {},
@@ -14,6 +14,8 @@
         connectionLabel = 'Servicio Activo',
         connected = true,
     } = $props();
+    // El logo lleva a la página de inicio del rol, no a una pantalla que quizá no pueda abrir.
+    const inicio = $derived(inicioPorRol(user?.rol));
 </script>
 
 <div class="flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6">
@@ -33,9 +35,9 @@
         <!-- Logo en Móvil (en Desktop se muestra prominentemente en la Sidebar) -->
         <div class="flex items-center md:hidden">
             {#if nativeNavigation}
-                <a href="/dashboard" class="flex items-center"><img src={logo} alt="TrackEat" class="h-8 w-auto object-contain" /></a>
+                <a href={inicio} class="flex items-center"><img src={logo} alt="TrackEat" class="h-8 w-auto object-contain" /></a>
             {:else}
-                <Link href="/dashboard" class="flex items-center"><img src={logo} alt="TrackEat" class="h-8 w-auto object-contain" /></Link>
+                <a href={inicio} class="flex items-center"><img src={logo} alt="TrackEat" class="h-8 w-auto object-contain" /></a>
             {/if}
         </div>
 
