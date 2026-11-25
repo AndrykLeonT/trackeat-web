@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Pago;
 use App\Models\Pedido;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,6 +34,39 @@ final class HistorialPedidos
             ->where('pedidos.id_usuario', $usuario->id)
             ->where('pedidos.eliminado', false)
             ->when($dia, fn (Builder $q) => $q->whereRaw(self::expresionDia().' = ?', [$zona, $dia]))
+            ->orderByDesc('pedidos.created_at')
+            ->orderByDesc('pedidos.id');
+    }
+
+    /**
+     * HU-10 · Pedidos para la administración, con su columna `dia`. Cada filtro es opcional:
+     * estado, dia (AAAA-MM-DD; vacío o `todos` = sin filtro de día), mesa, entrega, cliente (nombre, correo
+     * o teléfono del dueño del pedido) y corte (pedidos con un pago activo, que no sea reembolso, en ese corte).
+     * Las salas de demostración no se incluyen. Los valores ya vienen validados por el controlador.
+     */
+    public static function paraAdministracion(array $filtros): Builder
+    {
+        $zona = config('trackeat.zona_folio');
+        $dia = $filtros['dia'] ?? null;
+
+        return Pedido::query()
+            ->select('pedidos.*')
+            ->selectRaw(self::expresionDia().' AS dia', [$zona])
+            ->with('usuario:id,name,email')
+            ->where('pedidos.eliminado', false)
+            ->whereNull('pedidos.demo_room')
+            ->when($filtros['estado'] ?? null, fn (Builder $q, $estado) => $q->where('pedidos.estado', $estado))
+            ->when($dia && $dia !== 'todos', fn (Builder $q) => $q->whereRaw(self::expresionDia().' = ?', [$zona, $dia]))
+            ->when($filtros['mesa'] ?? null, fn (Builder $q, $mesa) => $q->where('pedidos.num_mesa', $mesa))
+            ->when($filtros['entrega'] ?? null, fn (Builder $q, $entrega) => $q->where('pedidos.tipo_entrega', $entrega))
+            ->when($filtros['cliente'] ?? null, function (Builder $q, $texto) {
+                // Los comodines de LIKE se escapan: lo escrito se busca literalmente.
+                $patron = '%'.addcslashes($texto, '\\%_').'%';
+                $q->whereIn('pedidos.id_usuario', User::query()->select('id')->where(fn ($campos) => $campos
+                    ->where('name', 'ilike', $patron)->orWhere('email', 'ilike', $patron)->orWhere('telefono', 'ilike', $patron)));
+            })
+            ->when($filtros['corte'] ?? null, fn (Builder $q, $corte) => $q->whereIn('pedidos.id',
+                Pago::query()->activos()->where('reembolso', false)->where('id_corte', $corte)->select('id_pedido')))
             ->orderByDesc('pedidos.created_at')
             ->orderByDesc('pedidos.id');
     }

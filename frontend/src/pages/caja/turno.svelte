@@ -9,6 +9,7 @@
     import Button from '@/components/ui/button.svelte';
     import { buttonVariants } from '@/components/ui/button.svelte';
     import { fecha, recargarCada } from '@/lib/caja';
+    import { formatoFolio } from '@/lib/folio';
 
     let { corte, resumen, pagos = [] } = $props();
 
@@ -76,7 +77,7 @@
                 class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4"
             >
                 <p id="confirmar-titulo" class="text-sm">
-                    <b>{textos[confirmando.accion].boton} el pago de {confirmando.pedido}.</b>
+                    <b>{textos[confirmando.accion].boton} el pago de {formatoFolio(confirmando.pedido)}.</b>
                     {textos[confirmando.accion].pregunta}
                 </p>
                 <div class="flex gap-2">

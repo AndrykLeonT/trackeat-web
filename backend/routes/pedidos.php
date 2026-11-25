@@ -2,8 +2,10 @@
 
 // Módulo 2 · Pedidos y comandas. La lógica vive en PedidoService; aquí solo se exponen las rutas.
 
+use App\Http\Controllers\Pedidos\AdminPedidoController;
 use App\Http\Controllers\Pedidos\PedidoController;
 use App\Http\Middleware\ActiveTrackEatUser;
+use App\Http\Middleware\RequireRole;
 use Illuminate\Support\Facades\Route;
 
 // Patrón global: también lo usan las rutas de caja (`caja/pedidos/{pedido}/cobrar`),
@@ -25,3 +27,9 @@ Route::prefix('api')->middleware(['auth', ActiveTrackEatUser::class])->group(fun
 Route::get('/pedidos/{pedido}', [PedidoController::class, 'paginaPedido'])->middleware(['auth', ActiveTrackEatUser::class]);
 Route::get('/mesero/pedidos', [PedidoController::class, 'paginaPorEntregar'])->middleware(['auth', ActiveTrackEatUser::class])->name('mesero.pedidos');
 Route::get('/mis-pedidos',[PedidoController::class, 'misPedidos'])->middleware(['auth', ActiveTrackEatUser::class])->name('mis-pedidos');
+
+// HU-10 · Administración de pedidos (solo administrador): lista con filtros y detalle con bitácora.
+Route::prefix('admin')->middleware(['auth', ActiveTrackEatUser::class, RequireRole::class.':administrador'])->group(function () {
+    Route::get('pedidos', [AdminPedidoController::class, 'index'])->name('admin.pedidos');
+    Route::get('pedidos/{pedido}', [AdminPedidoController::class, 'show'])->name('admin.pedidos.show');
+});

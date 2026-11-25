@@ -84,6 +84,7 @@
             items: [
                 { name: 'Panel de administración', href: '/admin', icon: LayoutDashboard, roles: ['administrador'] },
                 { name: 'Usuarios', href: '/admin/usuarios', icon: Users, roles: ['administrador'] },
+                { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardList, roles: ['administrador'] },
                 {
                     name: 'Productos',
                     href: '/admin/productos',

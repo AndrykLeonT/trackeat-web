@@ -6,6 +6,7 @@
     import Aviso from '@/components/caja/aviso.svelte';
     import { buttonVariants } from '@/components/ui/button.svelte';
     import { dinero, entrega, estadosPedido, fecha, recargarCada } from '@/lib/caja';
+    import { formatoFolio } from '@/lib/folio';
 
     // `corte` es el turno abierto de este cajero (cada cajero tiene el suyo), o null.
     let { pedidos = [], corte = null } = $props();
@@ -68,7 +69,7 @@
                     <tbody>
                         {#each pedidos as pedido (pedido.id)}
                             <tr class="border-t border-border">
-                                <td class="px-4 py-3 font-medium">{pedido.numero_pedido}</td>
+                                <td class="px-4 py-3 font-medium">{formatoFolio(pedido.numero_pedido)}</td>
                                 <td class="px-4 py-3">{pedido.cliente ?? '—'}</td>
                                 <td class="px-4 py-3">{entrega(pedido)}</td>
                                 <td class="px-4 py-3">{estadosPedido[pedido.estado] ?? pedido.estado}</td>
