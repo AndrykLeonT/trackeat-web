@@ -166,9 +166,12 @@
                     y monitoreo de estados sin fricciones.
                 </p>
 
-                <div class="mt-8 flex items-center gap-4">
-                    <a href="#que-es" class="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                        Conocer más
+                <div class="mt-8 flex flex-wrap items-center gap-4">
+                    <a href="/menu/" class="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                        Ver menú
+                    </a>
+                    <a href="/register" class="rounded-md border border-border px-5 py-2.5 text-sm font-medium text-foreground hover:bg-accent">
+                        Crear cuenta
                     </a>
                 </div>
 

@@ -105,7 +105,7 @@ class CaptchaTest extends TestCase
         $this->usuario();
         $this->cloudflareResponde(true);
         $this->post('/login', ['email' => 'cliente@example.test', 'password' => 'Correcta!2026', Turnstile::CAMPO => 'token-bueno'])
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('menu').'/');
         $this->assertAuthenticated();
     }
 

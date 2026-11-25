@@ -58,3 +58,4 @@ require __DIR__.'/catalogo.php';
 // pedidos.php va antes que caja.php: define el patrón global `{pedido}` que caja también usa.
 require __DIR__.'/pedidos.php';
 require __DIR__.'/caja.php';
+require __DIR__.'/admin.php';

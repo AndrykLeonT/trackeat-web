@@ -245,12 +245,12 @@ class PedidosModuloTest extends TestCase
     {
         try {
             // 05:30 UTC del 25 es todavía el 24 en Mazatlán (22:30): el folio conserva la fecha del 24.
-            Carbon::setTestNow(Carbon::parse('2026-11-25 05:30:00', 'UTC'));
-            $this->assertMatchesRegularExpression('/^TE-20261124-\d{3,}$/', $this->crearPedido());
+            Carbon::setTestNow(Carbon::parse('2020-11-25 05:30:00', 'UTC'));
+            $this->assertMatchesRegularExpression('/^TE-20201124-\d{3,}$/', $this->crearPedido());
             // 07:30 UTC del 25 son las 00:30 del 25 en Mazatlán: cambia el día y el contador vuelve a 001.
-            Carbon::setTestNow(Carbon::parse('2026-11-25 07:30:00', 'UTC'));
-            $this->assertSame('TE-20261125-001', $this->crearPedido());
-            $this->assertSame('TE-20261125-002', $this->crearPedido());
+            Carbon::setTestNow(Carbon::parse('2020-11-25 07:30:00', 'UTC'));
+            $this->assertSame('TE-20201125-001', $this->crearPedido());
+            $this->assertSame('TE-20201125-002', $this->crearPedido());
         } finally {
             Carbon::setTestNow();
         }

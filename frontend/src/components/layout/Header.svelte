@@ -1,13 +1,15 @@
 <script>
     import logo from '../../assets/images/logo.png';
     import Menu from '@lucide/svelte/icons/menu';
-    import ChefHat from '@lucide/svelte/icons/chef-hat';
-    import { page, Link } from '@inertiajs/svelte';
+    import UserRound from '@lucide/svelte/icons/user-round';
+    import { Link } from '@inertiajs/svelte';
 
     let {
         onToggleMobileMenu = () => {},
         isMobileMenuOpen = false,
         nativeNavigation = false,
+        user = null,
+        roleLabel = '',
         title = 'Panel Principal',
         connectionLabel = 'Servicio Activo',
         connected = true,
@@ -48,12 +50,7 @@
     <!-- Lado Derecho: Estado del sistema y Avatar de Usuario -->
     <div class="flex items-center gap-3">
         <!-- Estado discreto; el detalle queda disponible al pasar el cursor y para lectores de pantalla. -->
-        <div
-            role="status"
-            aria-label={connectionLabel}
-            title={connectionLabel}
-            class="inline-flex size-5 shrink-0 items-center justify-center"
-        >
+        <div role="status" aria-label={connectionLabel} title={connectionLabel} class="inline-flex size-5 shrink-0 items-center justify-center">
             <span aria-hidden="true" class="size-1.5 rounded-full {connected ? 'bg-chart-2' : 'bg-muted-foreground/60'}"></span>
         </div>
 
@@ -62,18 +59,18 @@
             <div
                 class="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-xs"
             >
-                {#if $page?.props?.auth?.user?.name}
-                    {$page.props.auth.user.name.slice(0, 2).toUpperCase()}
+                {#if user?.name}
+                    {user.name.slice(0, 2).toUpperCase()}
                 {:else}
-                    <ChefHat class="size-4.5" />
+                    <UserRound class="size-4.5" aria-hidden="true" />
                 {/if}
             </div>
-            {#if $page?.props?.auth?.user?.name}
+            {#if user?.name}
                 <div class="hidden lg:flex flex-col text-left leading-tight">
                     <span class="text-xs font-semibold text-foreground max-w-[120px] truncate">
-                        {$page.props.auth.user.name}
+                        {user.name}
                     </span>
-                    <span class="text-[10px] text-muted-foreground">Personal</span>
+                    <span class="text-[10px] text-muted-foreground">{roleLabel}</span>
                 </div>
             {/if}
         </div>

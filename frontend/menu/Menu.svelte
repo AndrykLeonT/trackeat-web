@@ -26,6 +26,7 @@
     let category = $state('');
     let cart = $state(emptyCart());
     let user = $state(null);
+    let logoutToken = $state('');
     // Límites del pedido (T-07) que manda /api/sesion; sin sesión se usan los valores por omisión del servidor.
     let limites = $state({ mesas_max: 30, cantidad_max: 100, total_max: '5000.00' });
     let online = $state(true);
@@ -150,20 +151,26 @@
             galleryWarning = 'El texto del menú está guardado, pero faltan imágenes sin conexión. Reintenta con internet y espacio disponible.';
         }
     }
+    let sessionVersion = 0;
     async function reconnect() {
+        const version = ++sessionVersion;
         online = navigator.onLine;
         if (!online) {
             status('Sin conexión', false);
             return;
         }
+
+        error = '';
+        const data = await session().catch(() => null);
+        if (version !== sessionVersion) return;
+        user = data?.user ?? null;
+        logoutToken = data?.csrf ?? '';
+        if (data?.limites) limites = data.limites;
+        status(!data ? 'Sesión no disponible' : user ? 'Conectado al servidor' : 'Inicia sesión para pedir', !!user);
+
         try {
-            error = '';
-            await syncCatalog();
-            const data = await session();
-            user = data.user;
-            if (data.limites) limites = data.limites;
             await adoptarCarrito();
-            status(user ? 'Conectado al servidor' : 'Inicia sesión para pedir', !!user);
+            await syncCatalog();
         } catch (e) {
             error = `Se conserva el catálogo local. ${e.message}`;
             status('Servidor no disponible', false);
@@ -198,12 +205,18 @@
         })();
         window.addEventListener('online', reconnect);
         window.addEventListener('offline', reconnect);
+        const resume = (event) => {
+            if (event.persisted) reconnect();
+        };
+        window.addEventListener('pageshow', resume);
         const pop = () => openDetail(location.pathname.match(/^\/menu\/(\d+)\/?$/)?.[1] ?? null, false);
         window.addEventListener('popstate', pop);
         return () => {
             disposed = true;
+            sessionVersion += 1;
             window.removeEventListener('online', reconnect);
             window.removeEventListener('offline', reconnect);
+            window.removeEventListener('pageshow', resume);
             window.removeEventListener('popstate', pop);
         };
     });
@@ -315,7 +328,15 @@
     }
 </script>
 
-<AppLayout nativeNavigation currentUrl="/menu/" headerTitle="Menú Digital" userRole={user?.rol} {connected} {connectionLabel}>
+<AppLayout
+    nativeNavigation
+    currentUrl="/menu/"
+    headerTitle="Menú Digital"
+    sessionUser={online ? user : null}
+    {logoutToken}
+    {connected}
+    {connectionLabel}
+>
     <div class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-5">
             <div>

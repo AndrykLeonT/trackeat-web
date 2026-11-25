@@ -11,12 +11,12 @@
 
     let { token, email } = $props();
 
-    let form = useForm({
+    let form = useForm(() => ({
         token,
         email,
         password: '',
         password_confirmation: '',
-    });
+    }));
 
     function submit(e) {
         e.preventDefault();
@@ -26,19 +26,19 @@
     }
 </script>
 
-<AuthLayout title="Reset password" description="Please enter your new password below">
-    <PageTitle title="Reset password" />
+<AuthLayout title="Restablecer contraseña" description="Ingresa el correo de tu cuenta y tu nueva contraseña">
+    <PageTitle title="Restablecer contraseña" />
 
     <form onsubmit={submit}>
         <div class="grid gap-6">
             <div class="grid gap-2">
-                <Label for="email">Email</Label>
-                <Input id="email" type="email" name="email" autocomplete="email" bind:value={$form.email} class="mt-1 block w-full" readonly />
+                <Label for="email">Correo electrónico</Label>
+                <Input id="email" type="email" name="email" autocomplete="email" bind:value={$form.email} class="mt-1 block w-full" required />
                 <InputError message={$form.errors.email} class="mt-2" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password">Password</Label>
+                <Label for="password">Nueva contraseña</Label>
                 <Input
                     id="password"
                     type="password"
@@ -47,13 +47,13 @@
                     bind:value={$form.password}
                     class="mt-1 block w-full"
                     autofocus
-                    placeholder="Password"
+                    placeholder="Nueva contraseña"
                 />
                 <InputError message={$form.errors.password} />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password_confirmation">Confirm password</Label>
+                <Label for="password_confirmation">Repite la contraseña</Label>
                 <Input
                     id="password_confirmation"
                     type="password"
@@ -61,7 +61,7 @@
                     autocomplete="new-password"
                     bind:value={$form.password_confirmation}
                     class="mt-1 block w-full"
-                    placeholder="Confirm password"
+                    placeholder="Repite la contraseña"
                 />
                 <InputError message={$form.errors.password_confirmation} class="mt-2" />
             </div>
@@ -70,7 +70,7 @@
                 {#if $form.processing}
                     <LoaderCircle class="h-4 w-4 animate-spin" />
                 {/if}
-                Reset password
+                Restablecer contraseña
             </Button>
         </div>
     </form>

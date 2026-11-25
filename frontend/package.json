@@ -33,6 +33,7 @@
         "@inertiajs/svelte": "^2.0.0",
         "@lucide/svelte": "^1.47.0",
         "@tailwindcss/vite": "^4.0.6",
+        "chart.js": "4.5.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "concurrently": "^9.0.1",
