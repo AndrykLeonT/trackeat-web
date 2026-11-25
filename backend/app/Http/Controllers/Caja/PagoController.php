@@ -7,6 +7,7 @@ use App\Models\Pago;
 use App\Models\Pedido;
 use App\Services\CajaService;
 use App\Support\DomainAccess;
+use App\Support\Folio;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -67,7 +68,7 @@ class PagoController extends Controller
             $request->input('monto'), $request->input('propina') ?: '0');
 
         if ($pedido->estadoPago() === 'pagado') {
-            return to_route('caja.index')->with('status', "Pedido {$pedido->numero_pedido} pagado.");
+            return to_route('caja.index')->with('status', 'Pedido '.Folio::visible($pedido->numero_pedido).' pagado.');
         }
 
         return back()->with('status', 'Pago registrado.');

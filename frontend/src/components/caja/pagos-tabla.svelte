@@ -1,5 +1,6 @@
 <script>
     import { dinero, fecha, metodos } from '@/lib/caja';
+    import { formatoFolio } from '@/lib/folio';
 
     // Tabla de pagos de un corte. Con `acciones` se muestra una columna extra (turno actual).
     let { pagos = [], acciones = null } = $props();
@@ -31,7 +32,7 @@
                 {#each pagos as pago (pago.id)}
                     <tr class="border-t border-border">
                         <td class="px-4 py-3 whitespace-nowrap">{fecha(pago.fecha)}</td>
-                        <td class="px-4 py-3 font-medium">{pago.pedido}</td>
+                        <td class="px-4 py-3 font-medium">{formatoFolio(pago.pedido)}</td>
                         <td class="px-4 py-3">{metodos[pago.metodo_pago]}</td>
                         <td class="px-4 py-3 text-right tabular-nums {pago.estado === 'activo' ? '' : 'line-through text-muted-foreground'}"
                             >{dinero(pago.monto)}</td

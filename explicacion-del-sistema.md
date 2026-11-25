@@ -312,7 +312,7 @@ Ventajas: la respuesta al usuario es rápida; si la tarea falla se puede **reint
 | Dónde se guarda la lista de tareas | Tabla `jobs` de PostgreSQL (migración `0001_01_01_000002_create_jobs_table.php`) |
 | Tareas que fallan definitivamente | Tabla `failed_jobs` (`backend/config/queue.php:106-110`) |
 | Qué tarea se encola | `PedidoActualizado` (`backend/app/Events/PedidoActualizado.php:10`) |
-| Dónde se lanza el evento | `backend/app/Services/PedidoService.php:80, 109, 137` (crear, avanzar y cancelar un pedido) |
+| Dónde se lanza el evento | `backend/app/Services/PedidoService.php:98, 126, 154, 189` (crear, avanzar, entregar y cancelar un pedido) |
 
 ### 5.3 Configuración, línea por línea
 

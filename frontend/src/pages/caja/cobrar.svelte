@@ -9,6 +9,7 @@
     import Label from '@/components/ui/label.svelte';
     import InputError from '@/components/input-error.svelte';
     import { centavos, deCentavos, dinero, entrega, estadosPedido, metodos } from '@/lib/caja';
+    import { formatoFolio } from '@/lib/folio';
 
     let { pedido, pagos = [] } = $props();
 
@@ -40,12 +41,12 @@
     }
 </script>
 
-<PageTitle title="Cobrar {pedido.numero_pedido}" />
+<PageTitle title="Cobrar {formatoFolio(pedido.numero_pedido)}" />
 <AppLayout headerTitle="Caja">
     <div class="space-y-6">
         <div class="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
             <div>
-                <h1 class="text-2xl font-bold">Cobrar pedido {pedido.numero_pedido}</h1>
+                <h1 class="text-2xl font-bold">Cobrar pedido {formatoFolio(pedido.numero_pedido)}</h1>
                 <p class="mt-1 text-sm text-muted-foreground">
                     {pedido.cliente ?? 'Sin cliente'} · {entrega(pedido)} · {estadosPedido[pedido.estado] ?? pedido.estado} · {estadoPago[
                         pedido.estado_pago

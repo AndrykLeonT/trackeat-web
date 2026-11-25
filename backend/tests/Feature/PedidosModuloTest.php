@@ -9,6 +9,7 @@ use App\Models\Producto;
 use App\Models\User;
 use App\Services\CajaService;
 use App\Services\PedidoService;
+use App\Support\Folio;
 use Carbon\Carbon;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -1006,5 +1007,270 @@ class PedidosModuloTest extends TestCase
         $usuario = (new User)->fill(['name' => 'Prueba', 'estacion' => 'cocina']);
         $this->assertSame('Prueba', $usuario->name);
         $this->assertNull($usuario->estacion);
+    }
+
+    // ───── HU-10 · Administración de pedidos ─────
+
+    private function adminPedidos(array $query = [])
+    {
+        return $this->actingAs($this->usuario('administrador'))->get('/admin/pedidos'.($query ? '?'.http_build_query($query) : ''));
+    }
+
+    /** Folios de la respuesta que pertenecen a los pedidos dados, en el orden de la lista (el seeder también crea pedidos de hoy). */
+    private function propios($respuesta, Pedido ...$pedidos): array
+    {
+        $mios = array_map(fn (Pedido $p) => $p->numero_pedido, $pedidos);
+
+        return array_values(array_filter($this->folios($respuesta), fn (string $folio) => in_array($folio, $mios, true)));
+    }
+
+    public function test_solo_el_administrador_entra_a_la_administracion_de_pedidos(): void
+    {
+        $pedido = $this->levantarPedido($this->usuario('cliente1'));
+        foreach (['cliente1', 'cocinero', 'mesero', 'cajero'] as $clave) {
+            $this->actingAs($this->usuario($clave))->get('/admin/pedidos')->assertForbidden();
+            $this->actingAs($this->usuario($clave))->get("/admin/pedidos/{$pedido->id}")->assertForbidden();
+        }
+        $this->adminPedidos()->assertOk()->assertInertia(fn (Assert $page) => $page->component('admin/pedidos', false));
+        $this->actingAs($this->usuario('administrador'))->get("/admin/pedidos/{$pedido->id}")->assertOk();
+        auth()->logout();
+        $this->get('/admin/pedidos')->assertRedirect('/login');
+    }
+
+    public function test_por_defecto_muestra_hoy_y_se_elige_otro_dia_o_todos(): void
+    {
+        $mesero = $this->usuario('mesero');
+        $ayer = $this->pedidoCreadoEl($mesero, now('America/Mazatlan')->subDay()->setTime(12, 0)->toDateTimeString());
+        $hoy = $this->levantarPedido($mesero);
+        $diaHoy = now('America/Mazatlan')->toDateString();
+        $diaAyer = now('America/Mazatlan')->subDay()->toDateString();
+
+        foreach ([[], ['dia' => 'hola'], ['dia' => '2026-02-30']] as $query) {
+            $respuesta = $this->adminPedidos($query)->assertInertia(fn (Assert $page) => $page->where('filtros.dia', $diaHoy));
+            $this->assertSame([$hoy->numero_pedido], $this->propios($respuesta, $hoy, $ayer));
+        }
+        $this->assertSame([$ayer->numero_pedido], $this->propios($this->adminPedidos(['dia' => $diaAyer]), $hoy, $ayer));
+        // Más reciente primero.
+        $this->assertSame([$hoy->numero_pedido, $ayer->numero_pedido], $this->propios($this->adminPedidos(['dia' => 'todos']), $hoy, $ayer));
+    }
+
+    public function test_filtra_por_estado(): void
+    {
+        $mesero = $this->usuario('mesero');
+        $cancelado = $this->levantarPedido($mesero);
+        $activo = $this->levantarPedido($mesero);
+        app(PedidoService::class)->cancelar($this->usuario('administrador'), $cancelado->id, 'Error en la captura');
+
+        $this->assertSame([$cancelado->numero_pedido], $this->propios($this->adminPedidos(['estado' => 'cancelado']), $cancelado, $activo));
+        $this->assertSame([$activo->numero_pedido], $this->propios($this->adminPedidos(['estado' => 'recibido']), $cancelado, $activo));
+        $this->assertSame([], $this->propios($this->adminPedidos(['estado' => 'entregado']), $cancelado, $activo));
+    }
+
+    public function test_filtra_por_mesa_y_tipo_de_entrega_y_se_combinan(): void
+    {
+        $mesero = $this->usuario('mesero');
+        $mesa5 = $this->levantarPedido($mesero, ['tipo_entrega' => 'comer_aqui', 'num_mesa' => 5]);
+        $mesa7 = $this->levantarPedido($mesero, ['tipo_entrega' => 'comer_aqui', 'num_mesa' => 7]);
+        $llevar = $this->levantarPedido($mesero);
+
+        $todos = [$mesa5, $mesa7, $llevar];
+        $this->assertSame([$mesa5->numero_pedido], $this->propios($this->adminPedidos(['mesa' => 5]), ...$todos));
+        $this->assertSame([$mesa7->numero_pedido, $mesa5->numero_pedido], $this->propios($this->adminPedidos(['entrega' => 'comer_aqui']), ...$todos));
+        $this->assertSame([$llevar->numero_pedido], $this->propios($this->adminPedidos(['entrega' => 'para_llevar']), ...$todos));
+        $this->assertSame([$mesa7->numero_pedido], $this->propios($this->adminPedidos(['entrega' => 'comer_aqui', 'mesa' => 7, 'estado' => 'recibido']), ...$todos));
+        $this->assertSame([], $this->propios($this->adminPedidos(['entrega' => 'para_llevar', 'mesa' => 7]), ...$todos));
+    }
+
+    public function test_filtra_por_cliente_por_nombre_correo_o_telefono_y_los_comodines_son_literales(): void
+    {
+        $ana = $this->crearUsuario('cliente_ana', 'cliente');
+        $ana->forceFill(['telefono' => '6671112233'])->save();
+        $beto = $this->crearUsuario('cliente_beto', 'cliente');
+        $deAna = $this->levantarPedido($ana);
+        $deBeto = $this->levantarPedido($beto);
+
+        $this->assertSame([$deAna->numero_pedido], $this->folios($this->adminPedidos(['cliente' => 'cliente_ana Prueba'])));
+        $this->assertSame([$deBeto->numero_pedido], $this->folios($this->adminPedidos(['cliente' => 'CLIENTE_BETO@prueba'])));
+        $this->assertSame([$deAna->numero_pedido], $this->folios($this->adminPedidos(['cliente' => '1112233'])));
+        // `%` y `_` se buscan tal cual: ningún usuario los tiene, así que no debe coincidir todo.
+        $this->assertSame([], $this->folios($this->adminPedidos(['cliente' => '%'])));
+        $this->assertSame([], $this->folios($this->adminPedidos(['cliente' => 'cliente_a_a'])));
+    }
+
+    public function test_el_corte_separa_los_pedidos_de_un_dia_con_dos_cortes(): void
+    {
+        $mesero = $this->usuario('mesero');
+        $enPrimero = $this->pedidoCreadoEl($mesero, '2026-11-20 12:00:00');
+        $enSegundo = $this->pedidoCreadoEl($mesero, '2026-11-20 17:00:00');
+        $sinCobro = $this->pedidoCreadoEl($mesero, '2026-11-20 18:00:00');
+        $corte1 = $this->cobrarEnCorteAbiertoEl($enPrimero, '2026-11-20 08:00:00', 'cajero_turno1')->id_corte;
+        $corte2 = $this->cobrarEnCorteAbiertoEl($enSegundo, '2026-11-20 15:00:00', 'cajero_turno2')->id_corte;
+
+        // Con el filtro de corte y sin día elegido no se aplica el día de hoy: el corte ya acota los pedidos.
+        $this->assertSame([$enPrimero->numero_pedido], $this->folios($this->adminPedidos(['corte' => $corte1])));
+        $this->assertSame([$enSegundo->numero_pedido], $this->folios($this->adminPedidos(['corte' => $corte2])));
+        // Sin corte, el día reúne los tres.
+        $this->assertSame([$sinCobro->numero_pedido, $enSegundo->numero_pedido, $enPrimero->numero_pedido], $this->folios($this->adminPedidos(['dia' => '2026-11-20'])));
+        // El selector trae los cortes con su cajero.
+        $cortes = collect($this->adminPedidos()->viewData('page')['props']['cortes'])->keyBy('id');
+        $this->assertTrue($cortes->has($corte1));
+        $this->assertSame('cajero_turno2 Prueba', $cortes[$corte2]['cajero']);
+    }
+
+    public function test_un_pago_corregido_ya_no_ubica_el_pedido_en_su_corte(): void
+    {
+        $pedido = $this->pedidoCreadoEl($this->usuario('mesero'), '2026-11-20 12:00:00');
+        $pago = $this->cobrarEnCorteAbiertoEl($pedido, '2026-11-20 08:00:00', 'cajero_turno1');
+        $this->assertSame([$pedido->numero_pedido], $this->folios($this->adminPedidos(['corte' => $pago->id_corte])));
+
+        app(CajaService::class)->corregir(User::where('email', 'cajero_turno1@prueba.test')->firstOrFail(), $pago->id);
+        $this->assertSame([], $this->folios($this->adminPedidos(['corte' => $pago->id_corte])));
+    }
+
+    public function test_los_filtros_invalidos_se_rechazan(): void
+    {
+        foreach ([['estado', 'raro'], ['mesa', 0], ['mesa', 999], ['mesa', 'x'], ['entrega', 'volando'], ['corte', 999999], ['corte', 'x'],
+            ['cliente', str_repeat('a', 121)]] as [$campo, $valor]) {
+            $this->adminPedidos([$campo => $valor])->assertSessionHasErrors($campo);
+        }
+    }
+
+    public function test_las_salas_de_demostracion_no_aparecen_en_la_administracion(): void
+    {
+        $sala = $this->crearUsuario('cliente_sala', 'cliente');
+        $sala->forceFill(['demo_room' => (string) Str::uuid()])->save();
+        $deSala = $this->levantarPedido($sala);
+        $real = $this->levantarPedido($this->usuario('mesero'));
+
+        $folios = $this->folios($this->adminPedidos(['dia' => 'todos']));
+        $this->assertContains($real->numero_pedido, $folios);
+        $this->assertNotContains($deSala->numero_pedido, $folios);
+        $this->actingAs($this->usuario('administrador'))->get("/admin/pedidos/{$deSala->id}")->assertNotFound();
+    }
+
+    public function test_el_detalle_trae_items_estaciones_bitacora_y_motivo_de_cancelacion(): void
+    {
+        $cliente = $this->usuario('cliente1');
+        $pedido = $this->levantarPedido($cliente, ['items' => [['id_producto' => Producto::firstOrFail()->id, 'cantidad' => 2, 'notas' => 'sin cebolla']]]);
+        $estacion = $pedido->estaciones()->firstOrFail()->estacion;
+        app(PedidoService::class)->avanzar($this->usuario('cocinero'), $pedido->id, $estacion, 'preparacion');
+        app(PedidoService::class)->cancelar($this->usuario('administrador'), $pedido->id, 'Pedido duplicado');
+
+        $this->actingAs($this->usuario('administrador'))->get("/admin/pedidos/{$pedido->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('admin/pedido', false)
+                ->where('pedido.numero_pedido', $pedido->numero_pedido)
+                ->where('pedido.motivo_cancelacion', 'Pedido duplicado')
+                ->where('pedido.usuario.email', $cliente->email)
+                ->where('pedido.items.0.notas', 'sin cebolla')
+                ->where('pedido.items.0.producto.nombre', Producto::firstOrFail()->nombre)
+                ->has('pedido.estaciones', 1)
+                ->has('pedido.historial', 2)
+                ->where('pedido.historial.0.estado_nuevo', 'preparacion')
+                ->where('pedido.historial.0.responsable.rol', 'cocinero')
+                ->where('pedido.historial.1.estado_nuevo', 'cancelado')
+                ->where('pedido.historial.1.responsable.rol', 'administrador')
+                ->missing('pedido.historial.0.responsable.email'));
+    }
+
+    public function test_un_pedido_inexistente_en_el_detalle_responde_404(): void
+    {
+        $this->actingAs($this->usuario('administrador'))->get('/admin/pedidos/999999')->assertNotFound();
+    }
+
+    public function test_la_lista_se_pagina_de_20_en_20_sin_consultas_por_fila(): void
+    {
+        $mesero = $this->usuario('mesero');
+        foreach (range(1, 3) as $i) {
+            $this->pedidoCreadoEl($mesero, '2026-11-10 12:00:00');
+        }
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->adminPedidos(['dia' => '2026-11-10'])->assertInertia(fn (Assert $page) => $page->has('pedidos.data', 3));
+        $consultasConPocos = count(DB::getQueryLog());
+
+        foreach (range(1, 22) as $i) {
+            $this->pedidoCreadoEl($mesero, '2026-11-10 12:00:00');
+        }
+        DB::flushQueryLog();
+        $this->adminPedidos(['dia' => '2026-11-10'])->assertInertia(fn (Assert $page) => $page
+            ->has('pedidos.data', 20)->where('pedidos.current_page', 1)->where('pedidos.last_page', 2)->where('pedidos.total', 25));
+        $this->assertSame($consultasConPocos, count(DB::getQueryLog()), 'Las consultas no deben crecer con el número de filas.');
+        DB::disableQueryLog();
+        $this->adminPedidos(['dia' => '2026-11-10', 'page' => 2])->assertInertia(fn (Assert $page) => $page->has('pedidos.data', 5));
+    }
+
+    // ───── T-09 · Flujo completo entre módulos ─────
+
+    public function test_flujo_completo_mesero_cocina_entrega_caja_y_administracion(): void
+    {
+        $mesero = $this->usuario('mesero');
+        $cocinero = $this->usuario('cocinero');
+        $cajero = $this->crearUsuario('cajero_flujo', 'cajero');
+        $servicio = app(PedidoService::class);
+
+        // 1. El mesero captura un pedido de mesa con un producto de cocina y uno de barra: queda a su nombre.
+        $pedido = $servicio->crear($mesero, ['tipo_entrega' => 'comer_aqui', 'num_mesa' => 4, 'items' => [
+            ['id_producto' => Producto::where('nombre', 'Hamburguesa')->firstOrFail()->id, 'cantidad' => 2],
+            ['id_producto' => Producto::where('nombre', 'Limonada')->firstOrFail()->id, 'cantidad' => 1],
+        ]]);
+        $this->assertMatchesRegularExpression('/^TE-\d{8}-\d{3}$/', $pedido->numero_pedido);
+        $this->assertSame($mesero->id, $pedido->id_usuario);
+        $this->assertSame('270.00', $pedido->total);
+        $this->assertEqualsCanonicalizing(['cocina', 'barra'], $pedido->estaciones->pluck('estacion')->all());
+
+        // 2. El cocinero atiende ambas estaciones hasta `listo`; el pedido sigue a la más atrasada.
+        $servicio->avanzar($cocinero, $pedido->id, 'cocina', 'preparacion');
+        $servicio->avanzar($cocinero, $pedido->id, 'cocina', 'listo');
+        $this->assertSame('recibido', $pedido->fresh()->estado);
+        $servicio->avanzar($cocinero, $pedido->id, 'barra', 'preparacion');
+        $servicio->avanzar($cocinero, $pedido->id, 'barra', 'listo');
+        $this->assertSame('listo', $pedido->fresh()->estado);
+
+        // 3. El mesero lo entrega completo.
+        $this->assertSame('entregado', $servicio->entregar($mesero, $pedido->id)->estado);
+
+        // 4. El cajero lo cobra en su corte.
+        $corte = app(CajaService::class)->abrir($cajero, '100');
+        $pago = app(CajaService::class)->cobrar($cajero, $pedido->id, $corte->id, 'efectivo', '270.00');
+        $this->assertSame($corte->id, $pago->id_corte);
+        $this->assertSame('pagado', $pedido->fresh()->estadoPago());
+
+        // 5. El administrador lo encuentra por su corte y ve la bitácora completa, con quién hizo cada paso.
+        $this->assertSame([$pedido->numero_pedido], $this->folios($this->adminPedidos(['corte' => $corte->id, 'estado' => 'entregado'])));
+        $this->actingAs($this->usuario('administrador'))->get("/admin/pedidos/{$pedido->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('pedido.historial', 6)
+                ->where('pedido.historial.0.responsable.rol', 'cocinero')
+                ->where('pedido.historial.5.estado_nuevo', 'entregado')->where('pedido.historial.5.responsable.rol', 'mesero'));
+
+        // 6. Quien lo levantó lo sigue viendo en su página, ya entregado.
+        $this->actingAs($mesero)->get("/pedidos/{$pedido->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('pedido.estado', 'entregado')->where('pedido.numero_pedido', $pedido->numero_pedido));
+    }
+
+    // ───── Folio corto en caja ─────
+
+    public function test_el_folio_visible_es_el_numero_del_dia_y_los_folios_anteriores_quedan_igual(): void
+    {
+        $this->assertSame('#006', Folio::visible('TE-20261125-006'));
+        $this->assertSame('#1234', Folio::visible('TE-20261125-1234'));
+        // Folios anteriores o de ejemplo, y valores que no encajan, se muestran tal cual.
+        $this->assertSame('DEMO-001', Folio::visible('DEMO-001'));
+        $this->assertSame('TE-01JABCDEFGHJKMNPQRSTVWXYZ0', Folio::visible('TE-01JABCDEFGHJKMNPQRSTVWXYZ0'));
+        $this->assertSame('TE-20261125-006x', Folio::visible('TE-20261125-006x'));
+        $this->assertSame('', Folio::visible(null));
+    }
+
+    public function test_al_cobrar_por_completo_el_mensaje_de_caja_usa_el_folio_corto(): void
+    {
+        $cajero = $this->crearUsuario('cajero_folio', 'cajero');
+        app(CajaService::class)->abrir($cajero, '100');
+        $nuevo = $this->levantarPedido($this->usuario('cliente1'));
+        $anterior = $this->levantarPedido($this->usuario('cliente2'));
+        $anterior->update(['numero_pedido' => 'DEMO-777']);
+
+        $this->actingAs($cajero)->post("/caja/pedidos/{$nuevo->id}/cobrar", ['metodo_pago' => 'efectivo', 'monto' => $nuevo->total])
+            ->assertRedirect()->assertSessionHas('status', 'Pedido #'.substr($nuevo->numero_pedido, -3).' pagado.');
+        $this->actingAs($cajero)->post("/caja/pedidos/{$anterior->id}/cobrar", ['metodo_pago' => 'efectivo', 'monto' => $anterior->total])
+            ->assertRedirect()->assertSessionHas('status', 'Pedido DEMO-777 pagado.');
     }
 }

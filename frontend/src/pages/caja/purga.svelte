@@ -7,6 +7,7 @@
     import Button from '@/components/ui/button.svelte';
     import Input from '@/components/ui/input.svelte';
     import Label from '@/components/ui/label.svelte';
+    import { formatoFolio } from '@/lib/folio';
 
     let { pagos = [] } = $props();
 
@@ -52,7 +53,7 @@
                     }}
                 >
                     <p id="purga-titulo" class="text-sm">
-                        <b>Borrar definitivamente el pago #{confirmando.id} del pedido {confirmando.pedido}.</b> No se puede deshacer.
+                        <b>Borrar definitivamente el pago #{confirmando.id} del pedido {formatoFolio(confirmando.pedido)}.</b> No se puede deshacer.
                     </p>
                     <div class="grid max-w-sm gap-2">
                         <Label for="password">Confirma tu contraseña</Label>
