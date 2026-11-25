@@ -34,7 +34,7 @@ class PedidosConcurrencyTest extends TestCase
         parent::tearDown();
     }
 
-    private function worker(int $pedidos, float $arranque): Process
+    private function worker(int $pedidos, float $arranque, User $usuario): Process
     {
         $config = config('database.connections.pgsql');
         $command = [PHP_BINARY, '-d', 'extension_dir='.ini_get('extension_dir')];
@@ -50,7 +50,7 @@ class PedidosConcurrencyTest extends TestCase
             }
         }
         $command = [...$command, base_path('tests/Support/pedido-worker.php'), 'trackeat-folio-'.bin2hex(random_bytes(4)),
-            (string) User::where('rol', 'cliente')->firstOrFail()->id, (string) Producto::firstOrFail()->id,
+            (string) $usuario->id, (string) Producto::firstOrFail()->id,
             (string) $pedidos, (string) $arranque];
         $process = new Process($command, base_path(), ['APP_ENV' => 'testing', 'DB_CONNECTION' => 'pgsql',
             'DB_HOST' => $config['host'], 'DB_PORT' => (string) $config['port'], 'DB_DATABASE' => $config['database'],
@@ -68,9 +68,11 @@ class PedidosConcurrencyTest extends TestCase
         $previo = (int) DB::table('folios_diarios')->where('fecha', $dia)->value('ultimo');
         $this->assertGreaterThan(0, $previo, 'El seeder ya consumió folios del día.');
 
-        // Cuatro procesos, cinco pedidos cada uno, todos arrancando en el mismo instante.
+        // Cuatro procesos, cinco pedidos cada uno, todos arrancando en el mismo instante. Los levanta el mesero,
+        // que no tiene límite de pedidos en curso (T-07).
+        $mesero = User::where('rol', 'mesero')->firstOrFail();
         $arranque = microtime(true) + 4;
-        $procesos = array_map(fn () => $this->worker(5, $arranque), range(1, 4));
+        $procesos = array_map(fn () => $this->worker(5, $arranque, $mesero), range(1, 4));
         $folios = [];
         foreach ($procesos as $proceso) {
             $this->assertSame(0, $proceso->wait(), $proceso->getErrorOutput().$proceso->getOutput());
@@ -84,5 +86,24 @@ class PedidosConcurrencyTest extends TestCase
         sort($numeros);
         $this->assertSame(range($previo + 1, $previo + 20), $numeros, 'Los folios deben ser consecutivos y sin huecos.');
         $this->assertSame($previo + 20, (int) DB::table('folios_diarios')->where('fecha', $dia)->value('ultimo'));
+    }
+
+    public function test_pedidos_simultaneos_de_un_cliente_no_rebasan_el_limite_de_pedidos_en_curso(): void
+    {
+        // Cliente sin pedidos: cuatro procesos intentan dos pedidos cada uno al mismo tiempo (8 intentos).
+        $cliente = (new User)->forceFill(['name' => 'Cliente Concurrente', 'primer_nombre' => 'Cliente', 'primer_apellido' => 'Concurrente',
+            'email' => 'concurrente@prueba.test', 'password' => 'TrackEatDemo!2026', 'rol' => 'cliente']);
+        $cliente->save();
+        $arranque = microtime(true) + 4;
+        $procesos = array_map(fn () => $this->worker(2, $arranque, $cliente), range(1, 4));
+        $resultados = [];
+        foreach ($procesos as $proceso) {
+            $this->assertSame(0, $proceso->wait(), $proceso->getErrorOutput().$proceso->getOutput());
+            array_push($resultados, ...json_decode(trim($proceso->getOutput()), true, flags: JSON_THROW_ON_ERROR));
+        }
+
+        $limite = config('trackeat.pedidos.abiertos_max_cliente');
+        $this->assertCount($limite, array_filter($resultados), 'Se deben crear exactamente tantos pedidos como el límite.');
+        $this->assertSame($limite, DB::table('pedidos')->where('id_usuario', $cliente->id)->count());
     }
 }
