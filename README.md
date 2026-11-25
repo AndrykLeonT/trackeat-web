@@ -18,13 +18,13 @@ su pedido, lo que evita confusiones y reduce el tiempo que el personal dedica a 
 
 ## 2. Usuarios del sistema
 
-| Tipo de usuario | Qué puede hacer |
-| --- | --- |
-| Visitante sin cuenta | Consultar el menú, buscar productos, filtrar por categorías y ver la información de los productos. |
-| Cliente | Realizar pedidos, consultar sus pedidos, revisar el estado de un pedido y consultar su historial. |
-| Cocinero | Consultar las comandas recibidas, ver los productos de cada pedido y actualizar su estado conforme se preparan. |
-| Mesero / Cajero | Crear pedidos para los clientes, consultar comandas, actualizar el estado de los pedidos y ver los pendientes. |
-| Administrador | Gestionar productos, categorías, usuarios y pedidos, y consultar información general del negocio. |
+| Tipo de usuario      | Qué puede hacer                                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Visitante sin cuenta | Consultar el menú, buscar productos, filtrar por categorías y ver la información de los productos.              |
+| Cliente              | Realizar pedidos, consultar sus pedidos, revisar el estado de un pedido y consultar su historial.               |
+| Cocinero             | Consultar las comandas recibidas, ver los productos de cada pedido y actualizar su estado conforme se preparan. |
+| Mesero / Cajero      | Crear pedidos para los clientes, consultar comandas, actualizar el estado de los pedidos y ver los pendientes.  |
+| Administrador        | Gestionar productos, categorías, usuarios y pedidos, y consultar información general del negocio.               |
 
 ## 3. Alcance
 
@@ -49,25 +49,29 @@ La primera página es la **landing page pública de TrackEat**, disponible en la
 las siguientes secciones:
 
 ### Encabezado
+
 Logotipo de TrackEat y un menú de navegación con enlaces internos a las tres secciones principales
-de la página: *Qué es TrackEat*, *Por qué usar TrackEat* y *Acerca de nosotros*.
+de la página: _Qué es TrackEat_, _Por qué usar TrackEat_ y _Acerca de nosotros_.
 
 ### Hero (portada)
+
 Mensaje principal del sistema — "Pedidos y seguimiento en tiempo real para restaurantes y food
 trucks" — acompañado de una descripción breve, un botón **Conocer más** y una ilustración de un
 chef. Esta sección se anima automáticamente al cargar la página.
 
 ### ¿Qué es TrackEat?
+
 Explicación del sistema y tres tarjetas con las funcionalidades centrales:
 
 1. **Menú Digital Interactivo** — la carta completa con fotos, descripciones y precios actualizados,
    accesible desde cualquier dispositivo móvil vía QR o terminal.
 2. **Gestión Ágil de Comandas** — toma y despacho de órdenes sin los errores del comandeo manual;
    las notas especiales llegan sin alteraciones a cocina.
-3. **Monitoreo en Tiempo Real** — estados visibles de cada pedido: *Recibido*, *En preparación* y
-   *Listo para entrega*.
+3. **Monitoreo en Tiempo Real** — estados visibles de cada pedido: _Recibido_, _En preparación_ y
+   _Listo para entrega_.
 
 ### ¿Por qué usar TrackEat?
+
 Tres beneficios clave presentados con cifras:
 
 - **−35 %** de optimización en tiempos de cocina mediante pantallas KDS sincronizadas.
@@ -76,35 +80,38 @@ Tres beneficios clave presentados con cifras:
   computadoras estándar.
 
 ### Acerca de nosotros
+
 Presentación del equipo desarrollador. Cada integrante aparece en una tarjeta con su nombre, rol y
 correo de contacto; al pasar el cursor, la tarjeta gira en 3D y muestra la fotografía de la persona.
 
 ### Llamado a la acción y pie de página
+
 Cierre con los botones **Contactar al equipo** y **Ver funcionalidades**, seguido del pie de página
 con el logotipo, una descripción del proyecto y los correos de contacto de los cuatro integrantes.
 
 ### Detalles de interacción y accesibilidad
+
 - Las secciones aparecen con una animación de entrada conforme se hace scroll hasta ellas
   (`IntersectionObserver`).
 - Las tarjetas de funcionalidades se elevan al pasar el cursor y las del equipo giran en 3D.
 - Los títulos son enfocables por teclado y muestran un anillo de foco visible.
 - Todas las animaciones se desactivan cuando el sistema operativo tiene activada la preferencia
-  *reducir movimiento* (`prefers-reduced-motion`).
+  _reducir movimiento_ (`prefers-reduced-motion`).
 
 ---
 
 ## 5. Tecnologías
 
-| Capa | Tecnología |
-| --- | --- |
-| Backend | PHP 8.2+, Laravel 12 |
-| Puente servidor–cliente | Inertia.js 2 |
-| Frontend | Svelte 5, JavaScript |
-| Estilos | Tailwind CSS 4 |
-| Empaquetador | Vite 6 |
-| Rutas en el cliente | Ziggy |
-| Base de datos | PostgreSQL 15+ |
-| Gestores de paquetes | Composer y pnpm |
+| Capa                    | Tecnología           |
+| ----------------------- | -------------------- |
+| Backend                 | PHP 8.2+, Laravel 12 |
+| Puente servidor–cliente | Inertia.js 2         |
+| Frontend                | Svelte 5, JavaScript |
+| Estilos                 | Tailwind CSS 4       |
+| Empaquetador            | Vite 6               |
+| Rutas en el cliente     | Ziggy                |
+| Base de datos           | PostgreSQL 15+       |
+| Gestores de paquetes    | Composer y pnpm      |
 
 ## 7. Estructura del repositorio
 
@@ -219,15 +226,15 @@ El [mapa de superficies de ataque](docs/superficies.md) identifica las entradas,
 
 Se utilizó Codex en la iteración inicial para revisar el código, proponer decisiones respondidas por la responsable del módulo, implementar catálogo y seguridad asignada, preparar pruebas y redactar borradores de documentación y exposición. Posteriormente se utilizó Antigravity para auditar el estado tras los merges del equipo, ampliar la cobertura de la bitácora de seguridad, corregir regresiones de pruebas E2E, re-ejecutar las comprobaciones y sincronizar la documentación y el entregable Word/PDF. Las evidencias registran las comprobaciones ejecutadas y las que quedan por repetir en la laptop de la demo.
 
-Para la Práctica 6, Codex también revisó el repositorio y las instrucciones del curso, implementó el módulo de usuarios, configuró HTTPS y las cabeceras, preparó la prueba de CSP y documentó el cierre. Carlos Omar Celis Calzada definió el alcance, eligió el entorno Windows para la demo, confirmó los requisitos del módulo, aprobó cada punto y reportó la inconsistencia de sesión en las vistas estáticas. Los resultados de las pruebas automatizadas y las comprobaciones de Docker se documentan en [las evidencias](docs/evidencias/05-cierre-practica-6.md).
+Para la Práctica 6, Codex también revisó el repositorio y las instrucciones del curso, corrigió errores el módulo de usuarios, solucionó errores del HTTPS y las cabeceras, preparó la prueba de CSP y documentó cada fase. Los resultados de las pruebas automatizadas y las comprobaciones de Docker se documentan en [las evidencias](docs/evidencias/05-cierre-practica-6.md).
 
 ## 10. Equipo
 
-| Integrante | No. de control | Rol |
-| --- | --- | --- |
-| Angélica Menchaca Rueda | 22310573 | Desarrollo Frontend |
-| Andryk Manuel León Tapia | 22310560 | Desarrollo Backend |
-| Daniel Alexander Estrada Cosio | 22310572 | Base de Datos y Cloud |
-| Carlos Omar Celis Calzada | 22310531 | QA y Arquitectura |
+| Integrante                     | No. de control | Rol                   |
+| ------------------------------ | -------------- | --------------------- |
+| Angélica Menchaca Rueda        | 22310573       | Desarrollo Frontend   |
+| Andryk Manuel León Tapia       | 22310560       | Desarrollo Backend    |
+| Daniel Alexander Estrada Cosio | 22310572       | Base de Datos y Cloud |
+| Carlos Omar Celis Calzada      | 22310531       | QA y Arquitectura     |
 
 **Repositorio:** https://github.com/AndrykLeonT/trackeat-web.git
