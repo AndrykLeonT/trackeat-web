@@ -18,6 +18,7 @@
     import Eraser from '@lucide/svelte/icons/eraser';
     import ClipboardList from '@lucide/svelte/icons/clipboard-list';
     import HandPlatter from '@lucide/svelte/icons/hand-platter';
+    import { inicioPorRol, rolesPersonal } from '@/lib/inicio';
 
     let { onNavigate = null, nativeNavigation = false, currentUrl = null, user = null, roleLabel = '', logoutToken = '' } = $props();
     const role = $derived(user?.rol);
@@ -29,10 +30,12 @@
         {
             title: 'Operación',
             items: [
+                // Solo el personal (los cuatro roles); clientes y visitantes no lo ven ni entran.
                 {
                     name: 'Dashboard',
                     href: '/dashboard',
                     icon: LayoutDashboard,
+                    roles: rolesPersonal,
                 },
                 {
                     name: 'Comandas',
@@ -40,14 +43,15 @@
                     icon: CookingPot,
                     roles: ['cocinero', 'administrador'],
                 },
-                // Módulo 2 · HU-04: historial por día, solo para clientes.
-                { name: 'Mis pedidos', href: '/mis-pedidos', icon: ClipboardList, roles: ['cliente'] },
+                // Módulo 2 · HU-04: historial por día. Lo ve cualquier cuenta con sesión (el personal también levanta pedidos).
+                { name: 'Mis pedidos', href: '/mis-pedidos', icon: ClipboardList, roles: signedInRoles },
                 // Módulo 2 · HU-09: pedidos por entregar, a nivel de pedido.
                 { name: 'Por entregar', href: '/mesero/pedidos', icon: HandPlatter, roles: ['mesero', 'cajero', 'administrador'] },
                 {
                     name: 'Personal',
                     href: '/personal/',
                     icon: Users,
+                    roles: rolesPersonal,
                     offlineCatalog: true,
                 },
             ],
@@ -65,6 +69,7 @@
                     name: 'Recetas',
                     href: '/recetas',
                     icon: BookOpen,
+                    roles: rolesPersonal,
                 },
             ],
         },
@@ -105,7 +110,8 @@
         },
     ];
 
-    // Los enlaces sin `roles` los ven todos; las secciones que se quedan vacías no se muestran.
+    // Los enlaces sin `roles` los ven todos (solo el Menú Digital, que es público); las secciones vacías no se muestran.
+    const inicio = $derived(inicioPorRol(role));
     let visibleSections = $derived.by(() => {
         return navigationSections
             .map((section) => ({ ...section, items: section.items.filter((item) => !item.roles || item.roles.includes(role)) }))
@@ -153,13 +159,13 @@
         <!-- Encabezado con Logo grande -->
         <div class="mb-6 px-2 pt-2 pb-4 border-b border-sidebar-border">
             {#if nativeNavigation}
-                <a href="/dashboard" onclick={handleNavClick} class="inline-block transition-transform duration-200 hover:scale-[1.02]">
+                <a href={inicio} onclick={handleNavClick} class="inline-block transition-transform duration-200 hover:scale-[1.02]">
                     <img src={logo} alt="TrackEat" class="h-11 w-auto object-contain" />
                 </a>
             {:else}
-                <Link href="/dashboard" onclick={handleNavClick} class="inline-block transition-transform duration-200 hover:scale-[1.02]">
+                <a href={inicio} onclick={handleNavClick} class="inline-block transition-transform duration-200 hover:scale-[1.02]">
                     <img src={logo} alt="TrackEat" class="h-11 w-auto object-contain" />
-                </Link>
+                </a>
             {/if}
         </div>
 

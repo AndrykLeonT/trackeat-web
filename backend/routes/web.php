@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\TrackEatController;
+use App\Http\Middleware\ActiveTrackEatUser;
+use App\Http\Middleware\RequirePersonal;
+use App\Http\Middleware\RequireRole;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -10,25 +13,29 @@ Route::get('/', function () {
     return Inertia::render('public/landing');
 })->name('home');
 
-Route::get('/dashboard', function () {
-    return Inertia::render('public/dashboard', [
-        'title' => 'Dashboard',
-        'description' => 'Visión general de pedidos y estado de cocina.',
-    ]);
-})->name('dashboard');
+// Vistas del personal (los cuatro roles, uno por uno; ver RequirePersonal). Sin sesión va a login y un cliente recibe 403.
+// Los invitados de la demostración de clase son la única excepción: ven el tablero de su sala.
+Route::middleware(['auth', ActiveTrackEatUser::class, RequirePersonal::class])->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('public/dashboard', [
+            'title' => 'Dashboard',
+            'description' => 'Visión general de pedidos y estado de cocina.',
+        ]);
+    })->name('dashboard');
 
-Route::get('/comandas', function () {
-    // HU-09: mesero y cajero trabajan a nivel de pedido, en su propia pantalla.
-    if (in_array(auth()->user()?->rol, ['mesero', 'cajero'], true)) {
-        return new RedirectResponse('/mesero/pedidos');
-    }
+    Route::get('/comandas', function () {
+        // HU-09: mesero y cajero trabajan a nivel de pedido, en su propia pantalla.
+        if (in_array(auth()->user()?->rol, ['mesero', 'cajero'], true)) {
+            return new RedirectResponse('/mesero/pedidos');
+        }
 
-    return Inertia::render('public/comandas');
-})->name('comandas');
+        return Inertia::render('public/comandas');
+    })->name('comandas');
 
-Route::get('/comandas/desglose', function () {
-    return Inertia::render('public/desglose-comandas');
-})->name('comandas.desglose');
+    Route::get('/comandas/desglose', function () {
+        return Inertia::render('public/desglose-comandas');
+    })->name('comandas.desglose');
+});
 
 // Keep the trailing slash: the static shell uses relative asset URLs.
 Route::get('/menu', fn () => new RedirectResponse('/menu/'))->name('menu');
@@ -39,19 +46,22 @@ Route::get('/api/sesion', [TrackEatController::class, 'sesion']);
 // El catálogo tiene su propio HTML estático para poder recargarlo sin conexión.
 Route::get('/personal', fn () => new RedirectResponse('/personal/'))->name('personal');
 
-Route::get('/recetas', function () {
-    return Inertia::render('public/dashboard', [
-        'title' => 'Recetas',
-        'description' => 'Fichas técnicas, ingredientes y costos unitarios de cocina.',
-    ]);
-})->name('recetas');
+// Vistas solo para el personal (los cuatro roles, uno por uno). Sin sesión va a login; un cliente recibe 403.
+Route::middleware(['auth', ActiveTrackEatUser::class, RequireRole::class.':administrador,cocinero,mesero,cajero'])->group(function () {
+    Route::get('/recetas', function () {
+        return Inertia::render('public/dashboard', [
+            'title' => 'Recetas',
+            'description' => 'Fichas técnicas, ingredientes y costos unitarios de cocina.',
+        ]);
+    })->name('recetas');
 
-Route::get('/metricas', function () {
-    return Inertia::render('public/dashboard', [
-        'title' => 'Métricas KDS',
-        'description' => 'Tiempos de preparación, rotación de pedidos y optimización de cocina (-35%).',
-    ]);
-})->name('metricas');
+    Route::get('/metricas', function () {
+        return Inertia::render('public/dashboard', [
+            'title' => 'Métricas KDS',
+            'description' => 'Tiempos de preparación, rotación de pedidos y optimización de cocina (-35%).',
+        ]);
+    })->name('metricas');
+});
 
 require __DIR__.'/auth.php';
 require __DIR__.'/catalogo.php';

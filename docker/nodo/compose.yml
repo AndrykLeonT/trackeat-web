@@ -58,6 +58,8 @@ services:
     # La app publica sus eventos en el Reverb de su propio nodo.
     environment: { <<: *app-env, NODO: "1", REVERB_HOST: reverb1 }
     ports: ["${ESCUCHA:-127.0.0.1}:8001:8000"]
+    # Fotos del catálogo (ver el volumen `catalogo` al final): las comparten los dos nodos de esta PC.
+    volumes: [catalogo:/app/storage/app/private/catalogo]
 
   reverb1:
     <<: *app
@@ -78,6 +80,7 @@ services:
     container_name: trackeat-nodo2
     environment: { <<: *app-env, NODO: "2", REVERB_HOST: reverb2 }
     ports: ["${ESCUCHA:-127.0.0.1}:8002:8000"]
+    volumes: [catalogo:/app/storage/app/private/catalogo]
 
   reverb2:
     <<: *app
@@ -91,3 +94,11 @@ services:
     container_name: trackeat-cola2
     command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3"]
     environment: { <<: *app-env, NODO: "2", REVERB_HOST: reverb2 }
+
+# Fotos del catálogo (`storage/app/private/catalogo`). Sin este volumen cada nodo tendría las suyas y se perderían al
+# recrear los contenedores. En una sola PC los dos nodos lo comparten, así que una foto subida desde el admin (o
+# sembrada con `php artisan db:seed --class=CatalogoImagenesSeeder --force`) la ven ambos. Con los nodos repartidos en
+# varias PCs cada PC tiene el suyo: correr el seeder en cada una (las fotos de ejemplo salen con el mismo nombre).
+volumes:
+  catalogo:
+    name: trackeat-catalogo

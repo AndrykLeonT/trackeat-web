@@ -47,9 +47,22 @@
 
     const itemCount = $derived(cart.items.reduce((sum, item) => sum + Math.max(0, Number(item.cantidad) || 0), 0));
     const hasUnavailable = $derived(cart.items.some((item) => item.unavailable));
+    // Un visitante (sin sesión) con productos en el carrito puede pulsar "Confirmar": se le pide iniciar sesión y el carrito se conserva.
+    const pideLogin = $derived(initialized && online && !user && cart.items.length > 0);
     const submitDisabled = $derived(
-        !initialized || !online || !activeUser || !puedeOrdenar || !cart.items.length || overLimit || busy || needsReview || hasUnavailable,
+        pideLogin
+            ? false
+            : !initialized || !online || !activeUser || !puedeOrdenar || !cart.items.length || overLimit || busy || needsReview || hasUnavailable,
     );
+
+    function enviar(event) {
+        if (pideLogin) {
+            event.preventDefault();
+            window.location.assign('/login');
+            return;
+        }
+        onSubmit(event);
+    }
 
     function productImage(item) {
         const match = catalog.find((entry) => entry.id === item.id_producto);
@@ -107,7 +120,7 @@
         {/if}
     </div>
 
-    <form onsubmit={onSubmit} class="flex min-h-0 flex-1 flex-col">
+    <form onsubmit={enviar} class="flex min-h-0 flex-1 flex-col">
         <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
             {#if personal}
                 <p class="flex items-start gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-foreground" data-testid="modo-captura">
@@ -382,7 +395,9 @@
                 disabled={submitDisabled}
                 class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
             >
-                {#if busy}
+                {#if pideLogin}
+                    <LogIn class="size-4" aria-hidden="true" />Inicia sesión para confirmar
+                {:else if busy}
                     <LoaderCircle class="size-4 animate-spin" aria-hidden="true" />Enviando…
                 {:else if cart.pending}
                     <RotateCw class="size-4" aria-hidden="true" />Reintentar envío
