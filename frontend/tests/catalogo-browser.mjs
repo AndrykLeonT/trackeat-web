@@ -25,7 +25,7 @@ async function login(email) {
     await page.locator('#email').fill(email);
     await page.locator('#password').fill('TrackEatDemo!2026');
     await page.getByRole('button', { name: 'Log in', exact: true }).click();
-    await page.waitForURL(`${base}/`);
+    await page.waitForURL(`${base}/dashboard`);
     return { context, page };
 }
 async function post(context, path, data) {

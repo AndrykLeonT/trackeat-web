@@ -61,6 +61,7 @@ try {
     if ($TestDatabase) {
         Set-TaskEnv 'DB_DATABASE' 'trackeat_demo_test'
         Set-TaskEnv 'DB_URL' ''
+        Set-TaskEnv 'TURNSTILE_ENABLED' 'false'
     }
     Set-TaskEnv 'APP_DEBUG' 'false'
     Set-TaskEnv 'TRACKEAT_DEMO_ENABLED' 'true'

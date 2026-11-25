@@ -5,23 +5,25 @@ param(
 $ErrorActionPreference = 'Stop'
 $taskInput = [IO.Path]::GetFullPath($InputPath)
 $taskOutput = [IO.Path]::GetFullPath($OutputPath)
-$taskWord = $null
-$taskDocument = $null
-$taskHadDocuments = $true
+$taskVbs = Join-Path ([IO.Path]::GetTempPath()) ("trackeat-word-" + [Guid]::NewGuid().ToString('N') + ".vbs")
 try {
-    $taskWord = New-Object -ComObject Word.Application
-    $taskHadDocuments = $taskWord.Documents.Count -gt 0
-    if (!$taskHadDocuments) { $taskWord.Visible = $false }
-    $taskWord.DisplayAlerts = 0
-    $taskDocument = $taskWord.Documents.Open($taskInput, $false, $true, $false)
-    $taskDocument.Repaginate()
-    $taskPages = $taskDocument.ComputeStatistics(2)
-    $taskDocument.ExportAsFixedFormat($taskOutput, 17)
-    Write-Output "PDF exportado por Microsoft Word. Paginas: $taskPages"
+    @'
+Option Explicit
+Dim word, doc, hadDocs, pages
+Set word = CreateObject("Word.Application")
+hadDocs = (word.Documents.Count > 0)
+If Not hadDocs Then word.Visible = False
+word.DisplayAlerts = 0
+Set doc = word.Documents.Open(WScript.Arguments(0), False, True, False)
+doc.Repaginate
+pages = doc.ComputeStatistics(2)
+doc.ExportAsFixedFormat WScript.Arguments(1), 17
+doc.Close 0
+If Not hadDocs And word.Documents.Count = 0 Then word.Quit
+WScript.Echo "PDF exportado por Microsoft Word. Paginas: " & pages
+'@ | Set-Content -LiteralPath $taskVbs -Encoding ASCII
+    & cscript.exe //Nologo $taskVbs $taskInput $taskOutput
+    if ($LASTEXITCODE -ne 0) { throw "Microsoft Word devolvio codigo $LASTEXITCODE al exportar el PDF." }
 } finally {
-    if ($taskDocument) { $taskDocument.Close(0); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($taskDocument) }
-    if ($taskWord) {
-        if (!$taskHadDocuments -and $taskWord.Documents.Count -eq 0) { $taskWord.Quit() }
-        [void][Runtime.InteropServices.Marshal]::ReleaseComObject($taskWord)
-    }
+    if (Test-Path -LiteralPath $taskVbs) { Remove-Item -LiteralPath $taskVbs -Force -ErrorAction SilentlyContinue }
 }
