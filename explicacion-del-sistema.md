@@ -132,7 +132,7 @@ Redis es una base de datos **en memoria** muy rápida, de tipo clave-valor. Norm
 | 31 | `image: redis:7-alpine` | Imagen oficial de Redis 7 sobre Alpine Linux (pequeña). |
 | 32 | `container_name: trackeat-redis` | Nombre visible en `docker ps` y en los comandos `docker stop`. |
 | 33 | `restart: unless-stopped` | Si el contenedor se cae o Docker se reinicia, vuelve a levantarse solo; solo se queda apagado si tú lo apagaste. |
-| 34 | `command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-trackeat-redis}", "--save", "", "--appendonly", "no"]` | Arranca Redis con tres opciones, explicadas abajo. |
+| 34 | `command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--save", "", "--appendonly", "no"]` | Arranca Redis con tres opciones, explicadas abajo. |
 | 35-36 | `environment: REDIS_PASSWORD: ...` | Pasa la contraseña al contenedor para que el *healthcheck* la pueda usar. |
 | 37 | `ports: ["${ESCUCHA:-127.0.0.1}:${REDIS_PUERTO_PUBLICADO:-6380}:6379"]` | Publica el puerto 6379 del contenedor como el 6380 de tu PC, solo en `127.0.0.1` salvo que `ESCUCHA=0.0.0.0`. |
 | 38-42 | `healthcheck` | Cada 2 s ejecuta `redis-cli ping` y espera `PONG`. Docker marca el contenedor como `healthy` o no. |
@@ -175,8 +175,8 @@ Cómo lo usa Laravel, `backend/config/reverb.php`:
 ### 3.6 Cómo verlo funcionando
 
 ```powershell
-docker exec trackeat-redis redis-cli -a trackeat-redis ping          # responde PONG
-docker exec trackeat-redis redis-cli -a trackeat-redis pubsub channels   # canales activos
+docker exec trackeat-redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping'          # responde PONG
+docker exec trackeat-redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli pubsub channels'   # canales activos
 ```
 
 El segundo lista el canal `reverb` mientras los Reverb están encendidos **(comprobado)**: es la prueba de que los Reverb están suscritos a Redis. Además, un cliente conectado al `reverb2` recibió un evento publicado en `reverb1` **(comprobado)**.
@@ -228,7 +228,7 @@ Conceptos que aparecen:
 | 32 | `BROADCAST_CONNECTION: reverb` | Le dice a Laravel que, al emitir un evento, use el driver `reverb`. |
 | 33 | `REVERB_APP_ID: trackeat` | Identificador de la aplicación en Reverb. |
 | 34 | `REVERB_APP_KEY: trackeat-balanceo` | Llave **pública**. Laravel se la entrega al navegador por `/api/sesion`. |
-| 35 | `REVERB_APP_SECRET: trackeat-balanceo-secreto` | Llave **privada** para firmar. Nunca llega al navegador. Son valores de demostración; en producción irían en secretos. |
+| 35 | `REVERB_APP_SECRET: ${REVERB_APP_SECRET}` | Llave **privada** para firmar. Nunca llega al navegador. Se configura en `docker/.env`. |
 | 36 | `REVERB_PORT: "8081"` | Puerto al que la app publica sus eventos. |
 | 37 | `REVERB_SCHEME: http` | Protocolo (sin cifrar; en producción sería `https`). |
 | 38 | `REVERB_ALLOWED_ORIGINS: "*"` | Desde qué sitios web se aceptan conexiones. `*` acepta cualquiera. |

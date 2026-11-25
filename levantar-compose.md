@@ -22,7 +22,9 @@ Los usuarios siempre entran por el **8080**. Los puertos 8001 y 8002 sirven para
 - Docker Desktop encendido (en Windows usa WSL2).
 - El archivo `backend/.env` con una `APP_KEY` (ya lo tienes si ejecutaste el proyecto antes).
 - El frontend compilado en `backend/public/build` (ya lo tienes si ejecutaste `pnpm build`). Si no existe: `cd frontend` y luego `pnpm install` y `pnpm build`.
-- El puerto 8080 libre. Si `presentar.bat` está abierto, ciérralo.
+- Los puertos 8080 y 8443 libres. Si `presentar.bat` está abierto, ciérralo.
+
+Antes de levantar Docker, prepara las [credenciales privadas](docs/evidencias/05-cierre-practica-6.md#credenciales-y-arranque) y el [certificado TLS](docs/evidencias/02-nginx-https.md).
 
 ## 1. Levantar todo
 
@@ -39,13 +41,13 @@ docker compose -f docker/compose.yml ps
 - El `migrate --seed` es solo para la primera vez. Repetirlo no hace daño.
 - `ps` debe mostrar los 9 contenedores en `Up`. Si `cola1`, `cola2` o los `reverb` se reinician al inicio, es normal antes de migrar.
 
-Después entra a **http://127.0.0.1:8080/**.
+Después entra a **https://localhost:8443/**.
 
 ## 2. Saber en qué nodo estás
 
 ### Con `/salud` (la más simple)
 
-Abre `http://127.0.0.1:8080/salud` y recarga varias veces. El JSON cambia entre los dos nodos:
+Abre `https://localhost:8443/salud` y recarga varias veces. El JSON cambia entre los dos nodos:
 
 ```json
 {"nodo":"1","bd":"ok","ip_cliente":"172.18.0.1"}
@@ -72,7 +74,7 @@ Las IPs las asigna Docker y pueden cambiar si recreas los contenedores; consúlt
 ### Seis peticiones seguidas desde PowerShell
 
 ```powershell
-1..6 | ForEach-Object { (Invoke-WebRequest http://127.0.0.1:8080/salud -UseBasicParsing).Content }
+1..6 | ForEach-Object { (Invoke-WebRequest https://localhost:8443/salud -UseBasicParsing).Content }
 ```
 
 ### Cada nodo directo, sin balanceador
@@ -120,7 +122,7 @@ docker compose -f docker/compose.yml restart balanceador
 
 ```powershell
 ab -n 1000 -c 20 -l http://127.0.0.1:8001/    # un nodo solo
-ab -n 1000 -c 20 -l http://127.0.0.1:8080/    # por el balanceador
+ab -n 1000 -c 20 -l https://localhost:8443/    # por el balanceador
 ```
 
 Para la prueba con un nodo apagado a la mitad, usa más peticiones (`-n 5000`) y apaga el nodo a los pocos segundos con `docker stop trackeat-nodo2`; con 1000 la corrida termina antes de que alcances a apagarlo. Los resultados de referencia están en [docs/mediciones.md](docs/mediciones.md).

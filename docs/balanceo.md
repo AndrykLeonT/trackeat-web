@@ -80,11 +80,11 @@ Los contenedores se reparten en dos archivos, según el papel que cumplen:
 | `docker/nodo/compose.yml` | Por nodo: la app, su Reverb y su cola (`nodo1`, `reverb1`, `cola1` y `nodo2`, `reverb2`, `cola2`) | Una PC por nodo |
 | `docker/compose.yml` | Incluye los dos anteriores | Una sola PC, para todo junto |
 
-Los mismos archivos sirven para los dos modos. Lo único que cambia es `docker/.env`, que dice dónde está cada pieza (ver `docker/.env.example`).
+Los mismos archivos sirven para los dos modos. `docker/.env` contiene las credenciales y, para varias PCs, las direcciones de cada servicio. Consulta la [preparación de credenciales](evidencias/05-cierre-practica-6.md#credenciales-y-arranque) y el [certificado de Nginx](evidencias/02-nginx-https.md).
 
 ### Modo una PC
 
-No necesita configuración. Los contenedores se encuentran por nombre (`db`, `redis`, `nodo1`, `reverb2`...) dentro de la red del proyecto.
+Con las credenciales y el certificado preparados, los contenedores se encuentran por nombre (`db`, `redis`, `nodo1`, `reverb2`...) dentro de la red del proyecto.
 
 ```
 docker compose -f docker/compose.yml build
@@ -92,7 +92,7 @@ docker compose -f docker/compose.yml up -d
 docker compose -f docker/compose.yml exec nodo1 php artisan migrate --seed --force   # solo la primera vez
 ```
 
-La aplicación queda en http://127.0.0.1:8080. Los nodos también responden directo en el 8001 y el 8002.
+La aplicación queda en `https://localhost:8443`. Nginx redirige desde el puerto 8080. Los puertos 8001 y 8002 sirven para diagnóstico directo de los nodos.
 
 ### Modo tres PCs
 
@@ -100,7 +100,7 @@ Ejemplo: PC A con la infraestructura (`192.168.1.10`), PC B con el nodo 1 (`192.
 
 1. En las tres, clonar el repositorio, compilar el frontend y **copiar el mismo `backend/.env`**. La `APP_KEY` debe ser idéntica; con claves distintas un nodo no puede leer la sesión que creó el otro.
 2. En las tres, crear `docker/.env` a partir de `docker/.env.example` con las IPs reales (`ESCUCHA=0.0.0.0`, `DB_HOST`, `REDIS_HOST`, `NODO1_ADDR`, `NODO2_ADDR`, `REVERB1_ADDR`, `REVERB2_ADDR`, `URL_PUBLICA` y `TRUSTED_PROXIES`).
-3. Abrir en el firewall de Windows los puertos que cada PC publica: 8080, 5433 y 6380 en la PC A; 8001 y 8091 en la B; 8002 y 8092 en la C.
+3. Abrir en el firewall de Windows los puertos que cada PC publica: 8080, 8443, 5433 y 6380 en la PC A; 8001 y 8091 en la B; 8002 y 8092 en la C.
 4. Levantar cada parte, empezando por la infraestructura:
 
 ```

@@ -22,7 +22,7 @@ Verificación del 25 de noviembre de 2026 en la rama `omar`. El despliegue de la
    ```
 
    `mkcert -install` agrega su propia CA al almacén de confianza de Windows. Ejecutarlo en la laptop que abrirá TrackEat y reiniciar Edge o Chrome si ya estaba abierto. La raíz pública se puede localizar con `mkcert -CAROOT`. La clave `rootCA-key.pem` debe permanecer en el equipo donde se generó. [Almacenes de confianza de mkcert](https://github.com/FiloSottile/mkcert#supported-root-stores)
-3. Con `backend/.env` listo y las dependencias del frontend instaladas, ejecutar:
+3. Con `backend/.env`, las [credenciales de Docker](05-cierre-practica-6.md#credenciales-y-arranque) y las dependencias del frontend preparados, ejecutar:
 
    ```powershell
    pnpm --dir frontend build

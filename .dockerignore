@@ -10,6 +10,12 @@ backend/storage/framework/cache/*
 backend/storage/framework/sessions/*
 backend/storage/framework/views/*
 backend/storage/pail/
+backend/storage/app/private/local-postgres/
+backend/**/*.pem
+backend/**/*.key
+backend/**/*.crt
+backend/**/*.p12
+backend/**/*.pfx
 backend/bootstrap/cache/*.php
 backend/**/*.sqlite
 backend/.phpunit.result.cache

@@ -213,11 +213,13 @@ La Práctica 5 (balanceo con dos nodos, Reverb por nodo y Redis) se levanta con 
 
 El módulo de catálogo incluye administración de productos y categorías (`cocina` y `barra`), galería segura con recodificación WebP y UUID fuera de `public`, agotados visibles, bajas y restauración, detalle enlazable y consulta de galerías sin conexión. Requiere PHP GD con soporte WebP y la migración de unicidad de nombres.
 
-La revisión de superficies de ataque y controles vigentes (distinguiendo lo verificado de los pendientes de servidor M12, M13 y cierre de M14) está en [superficies de ataque](docs/superficies.md). La existencia de esta documentación no acredita que las 14 medidas estén implementadas.
+El [mapa de superficies de ataque](docs/superficies.md) identifica las entradas, los permisos y los controles actuales. La [lista de verificación de la Práctica 6](docs/evidencias/05-cierre-practica-6.md) reúne las comprobaciones de las 14 medidas y las pruebas pendientes en la laptop de la demo. Para iniciar Docker, prepara las [credenciales locales](docs/evidencias/05-cierre-practica-6.md#credenciales-y-arranque) y el [certificado de Nginx](docs/evidencias/02-nginx-https.md).
 
 ### Declaración de uso de IA
 
-Se utilizó Codex en la iteración inicial para revisar el código, proponer decisiones respondidas por la responsable del módulo, implementar catálogo y seguridad asignada, preparar pruebas y redactar borradores de documentación y exposición. Posteriormente se utilizó Antigravity para auditar el estado tras los merges del equipo, ampliar la cobertura de la bitácora de seguridad, corregir regresiones de pruebas E2E, re-ejecutar las comprobaciones y sincronizar la documentación y el entregable Word/PDF. Las evidencias indican cuáles comprobaciones se ejecutaron y cuáles siguen pendientes. El equipo debe revisar el contenido y ensayar la demostración antes de entregarlo; no se atribuye a la revisión humana una validación que aún no se haya realizado.
+Se utilizó Codex en la iteración inicial para revisar el código, proponer decisiones respondidas por la responsable del módulo, implementar catálogo y seguridad asignada, preparar pruebas y redactar borradores de documentación y exposición. Posteriormente se utilizó Antigravity para auditar el estado tras los merges del equipo, ampliar la cobertura de la bitácora de seguridad, corregir regresiones de pruebas E2E, re-ejecutar las comprobaciones y sincronizar la documentación y el entregable Word/PDF. Las evidencias registran las comprobaciones ejecutadas y las que quedan por repetir en la laptop de la demo.
+
+Para la Práctica 6, Codex también revisó el repositorio y las instrucciones del curso, implementó el módulo de usuarios, configuró HTTPS y las cabeceras, preparó la prueba de CSP y documentó el cierre. Carlos Omar Celis Calzada definió el alcance, eligió el entorno Windows para la demo, confirmó los requisitos del módulo, aprobó cada punto y reportó la inconsistencia de sesión en las vistas estáticas. Los resultados de las pruebas automatizadas y las comprobaciones de Docker se documentan en [las evidencias](docs/evidencias/05-cierre-practica-6.md).
 
 ## 10. Equipo
 
