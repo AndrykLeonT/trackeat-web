@@ -4,7 +4,6 @@
     import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
     import CookingPot from '@lucide/svelte/icons/cooking-pot';
     import Utensils from '@lucide/svelte/icons/utensils';
-    import BookOpen from '@lucide/svelte/icons/book-open';
     import LogOut from '@lucide/svelte/icons/log-out';
     import ExternalLink from '@lucide/svelte/icons/external-link';
     import Users from '@lucide/svelte/icons/users';
@@ -64,12 +63,6 @@
                     href: '/menu/',
                     icon: Utensils,
                     offlineCatalog: true,
-                },
-                {
-                    name: 'Recetas',
-                    href: '/recetas',
-                    icon: BookOpen,
-                    roles: rolesPersonal,
                 },
             ],
         },

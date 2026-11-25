@@ -226,7 +226,7 @@ El [mapa de superficies de ataque](docs/superficies.md) identifica las entradas,
 
 Se utilizó Codex en la iteración inicial para revisar el código, proponer decisiones respondidas por la responsable del módulo, implementar catálogo y seguridad asignada, preparar pruebas y redactar borradores de documentación y exposición. Posteriormente se utilizó Antigravity para auditar el estado tras los merges del equipo, ampliar la cobertura de la bitácora de seguridad, corregir regresiones de pruebas E2E, re-ejecutar las comprobaciones y sincronizar la documentación y el entregable Word/PDF. Las evidencias registran las comprobaciones ejecutadas y las que quedan por repetir en la laptop de la demo.
 
-Para la Práctica 6, Codex también revisó el repositorio y las instrucciones del curso, corrigió errores el módulo de usuarios, solucionó errores del HTTPS y las cabeceras, preparó la prueba de CSP y documentó cada fase. Los resultados de las pruebas automatizadas y las comprobaciones de Docker se documentan en [las evidencias](docs/evidencias/05-cierre-practica-6.md).
+Para el resto de la programación de los modulos se utilizaron herramientas como claude code y antigravity, mediante el apoyo de un backlog generado en base a las historias de usuario y los requerimientos funcionales que se debían cumplir, se fue programando paso a paso mientras nosotros auditabamos el código y realizabamos los commit en github.
 
 ## 10. Equipo
 
