@@ -6,7 +6,10 @@
     import { prepareOffline, downloadGalleries, galleryReady } from './offline.js';
     import * as db from './db.js';
     import logo from '@/assets/images/logo.png';
+    import CheckCircle2 from '@lucide/svelte/icons/circle-check';
+    import RefreshCw from '@lucide/svelte/icons/refresh-cw';
     import Utensils from '@lucide/svelte/icons/utensils';
+    import CartPanel from './CartPanel.svelte';
 
     const emptyCart = () => ({
         items: [],
@@ -41,7 +44,7 @@
     let message = $state('');
     let busy = $state(false);
     let initialized = $state(false);
-    const total = $derived(cart.items.reduce((sum, item) => sum + item.cantidad * Number(item.precio), 0));
+    const total = $derived(cart.items.reduce((sum, item) => sum + Math.max(0, Number(item.cantidad) || 0) * Number(item.precio), 0));
     const overLimit = $derived(total > Number(limites.total_max));
     const activeUser = $derived(user && (!user.demo_expires_at || Date.parse(user.demo_expires_at) > Date.now()));
     // HU-08: el personal (salvo el cocinero) también captura pedidos aquí; quedan a su nombre (lo fija el servidor).
@@ -85,9 +88,12 @@
             const product = await db.product(item.id_producto);
             item.unavailable = !product || product.disponible === false;
             if (item.unavailable) changes.push(`${item.nombre}: agotado o retirado del menú. Quita este producto para continuar.`);
-            else if (Number(item.precio) !== Number(product.precio)) {
-                changes.push(`${item.nombre}: cambió de $${Number(item.precio).toFixed(2)} a $${Number(product.precio).toFixed(2)} MXN.`);
-                item.precio = product.precio;
+            else {
+                item.imagen = product.imagen || product.imagenes?.[0]?.url || item.imagen || '';
+                if (Number(item.precio) !== Number(product.precio)) {
+                    changes.push(`${item.nombre}: cambió de $${Number(item.precio).toFixed(2)} a $${Number(product.precio).toFixed(2)} MXN.`);
+                    item.precio = product.precio;
+                }
             }
         }
         if (changes.length) {
@@ -205,7 +211,15 @@
         if (cart.pending || busy || product.disponible === false) return;
         const existing = cart.items.find((item) => item.id_producto === product.id);
         if (existing) existing.cantidad = Math.min(limites.cantidad_max, existing.cantidad + 1);
-        else cart.items.push({ id_producto: product.id, cantidad: 1, notas: '', nombre: product.nombre, precio: product.precio });
+        else
+            cart.items.push({
+                id_producto: product.id,
+                cantidad: 1,
+                notas: '',
+                nombre: product.nombre,
+                precio: product.precio,
+                imagen: product.imagen || product.imagenes?.[0]?.url || '',
+            });
         try {
             await persist();
             message = `${product.nombre} agregado al carrito.`;
@@ -219,6 +233,24 @@
         } catch (e) {
             error = e.message;
         }
+    }
+    async function updateQuantity(id, delta) {
+        if (cart.pending || busy) return;
+        const item = cart.items.find((entry) => entry.id_producto === id);
+        if (!item) return;
+        const next = Math.min(limites.cantidad_max, Math.max(1, (Number(item.cantidad) || 1) + delta));
+        if (next === item.cantidad) return;
+        item.cantidad = next;
+        await changeCart();
+    }
+    async function clearCart() {
+        if (cart.pending || busy || !cart.items.length) return;
+        cart.items = [];
+        cartChanges = [];
+        needsReview = false;
+        cart.needsReview = false;
+        cart.reviewChanges = [];
+        await changeCart();
     }
     async function remove(id) {
         cart.items = cart.items.filter((item) => item.id_producto !== id);
@@ -295,27 +327,42 @@
                     class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Iniciar sesión</a
                 >{/if}
         </div>
-        <p class="text-sm text-muted-foreground" data-testid="offline-status">
-            {offlineReady && imagesReady && lastUpdated
-                ? 'Menú y galerías disponibles sin conexión.'
-                : lastUpdated
-                  ? 'Menú guardado; verificando descarga completa de imágenes.'
-                  : 'Preparando el menú sin conexión…'}
-            {lastUpdated ? `Actualizado: ${new Date(lastUpdated).toLocaleString('es-MX')}.` : 'Abre con conexión para descargar el catálogo.'}
-        </p>
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <p class="text-sm text-muted-foreground" data-testid="offline-status">
+                {offlineReady && imagesReady && lastUpdated
+                    ? 'Menú y galerías disponibles sin conexión.'
+                    : lastUpdated
+                      ? 'Menú guardado; verificando descarga completa de imágenes.'
+                      : 'Preparando el menú sin conexión…'}
+                {lastUpdated ? `Actualizado: ${new Date(lastUpdated).toLocaleString('es-MX')}.` : 'Abre con conexión para descargar el catálogo.'}
+            </p>
+            <button
+                type="button"
+                onclick={reconnect}
+                disabled={!online || busy || cart.pending}
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-input bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-xs transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+            >
+                <RefreshCw class="size-3.5" aria-hidden="true" />Actualizar menú</button
+            >
+        </div>
         {#if galleryWarning}<p role="alert" class="text-sm text-destructive">{galleryWarning}</p>{/if}
-        <button
-            type="button"
-            onclick={reconnect}
-            disabled={!online || busy || cart.pending}
-            class="text-sm font-semibold text-primary disabled:opacity-50">Actualizar menú</button
-        >
         {#if !online}<p class="rounded-xl border border-border bg-muted p-3 text-sm">
                 Sin conexión: puedes consultar el menú y preparar tu carrito. Confirma el envío cuando vuelva la red.
             </p>{/if}
-        <p role="status" class="break-words text-sm text-primary">{message}</p>
+        <!-- Diseño de main (recuadro con ícono). Sin enlace: el cliente pasa directo a /pedidos/{id} (HU-02) y el
+             personal ve su confirmación con "Ver seguimiento" dentro del carrito (HU-08). -->
+        {#if message}
+            <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
+                <p role="status" class="flex min-w-0 items-center gap-2 text-sm font-medium break-words text-foreground">
+                    <CheckCircle2 class="size-4 shrink-0 text-primary" aria-hidden="true" />
+                    <span>{message}</span>
+                </p>
+            </div>
+        {:else}
+            <p role="status" class="sr-only">{message}</p>
+        {/if}
         {#if error}<p role="alert" class="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm">{error}</p>{/if}
-        <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
             <section aria-label="Catálogo de productos" class="min-w-0 space-y-4">
                 {#if detailId}
                     <section aria-label="Detalle de producto" class="space-y-4 rounded-2xl border border-border bg-card p-5">
@@ -427,96 +474,31 @@
                         </p>{/each}
                 </div>
             </section>
-            <section aria-labelledby="cart-title" class="min-w-0 self-start rounded-2xl border border-border bg-card p-5 shadow-xs">
-                <h2 id="cart-title" class="text-lg font-bold">{personal ? 'Nuevo pedido' : 'Tu carrito'}</h2>
-                {#if personal}<p class="mt-2 rounded-lg bg-muted px-3 py-2 text-xs" data-testid="modo-captura">
-                        Capturando como <strong>{rolesPersonal[user.rol]}</strong> · el pedido quedará a tu nombre.
-                    </p>{/if}
-                {#if confirmacion}<div role="status" class="mt-3 rounded-xl border border-emerald-600/30 bg-emerald-600/10 p-3 text-sm text-emerald-800 dark:text-emerald-300">
-                        <p class="font-semibold">
-                            Pedido {confirmacion.folio}{confirmacion.mesa ? ` · Mesa ${confirmacion.mesa}` : ' · Para llevar'} confirmado.
-                        </p>
-                        <a href={`/pedidos/${confirmacion.id}`} class="font-semibold underline underline-offset-4">Ver seguimiento</a>
-                    </div>{/if}
-                {#if cartChanges.length}<div role="status" class="mt-3 space-y-2 rounded-xl bg-muted p-3 text-sm">
-                        <p class="font-semibold">Revisa los cambios del menú</p>
-                        {#each cartChanges as change, index (index)}<p>{change}</p>{/each}{#if needsReview}<button
-                                type="button"
-                                onclick={reviewCart}
-                                class="font-semibold text-primary">He revisado los cambios</button
-                            >{/if}
-                    </div>{/if}
-                <form onsubmit={send} class="mt-3 space-y-4">
-                    <fieldset disabled={cart.pending || busy} class="min-w-0 space-y-4">
-                        {#each cart.items as item (item.id_producto)}
-                            <div class="space-y-2 border-b border-border pb-3">
-                                <h3 class="font-semibold">{item.nombre}</h3>
-                                {#if item.unavailable}<p class="text-sm text-destructive">No disponible. Quita este producto.</p>{/if}
-                                <label class="block text-sm"
-                                    >Cantidad de {item.nombre}<input
-                                        type="number"
-                                        min="1"
-                                        max={limites.cantidad_max}
-                                        required
-                                        bind:value={item.cantidad}
-                                        onchange={changeCart}
-                                        class="mt-1 w-full rounded-lg border border-input bg-background p-2"
-                                    /></label
-                                ><label class="block text-sm"
-                                    >Notas para {item.nombre}<input
-                                        maxlength="1000"
-                                        bind:value={item.notas}
-                                        onchange={changeCart}
-                                        class="mt-1 w-full rounded-lg border border-input bg-background p-2"
-                                    /></label
-                                ><button type="button" onclick={() => remove(item.id_producto)} class="text-sm text-destructive"
-                                    >Quitar {item.nombre}</button
-                                >
-                            </div>
-                        {:else}<p class="text-sm text-muted-foreground">Agrega productos del menú.</p>{/each}
-                        <label class="block text-sm"
-                            >Entrega<select
-                                aria-label="Entrega"
-                                bind:value={cart.tipo_entrega}
-                                onchange={changeCart}
-                                class="mt-1 w-full rounded-lg border border-input bg-background p-2"
-                                ><option value="para_llevar">Para llevar</option><option value="comer_aqui">Comer aquí</option></select
-                            ></label
-                        >
-                        {#if cart.tipo_entrega === 'comer_aqui'}<label class="block text-sm"
-                                >Número de mesa<input
-                                    type="number"
-                                    min="1"
-                                    max={limites.mesas_max}
-                                    required
-                                    bind:value={cart.num_mesa}
-                                    onchange={changeCart}
-                                    class="mt-1 w-full rounded-lg border border-input bg-background p-2"
-                                /></label
-                            >{/if}
-                    </fieldset>
-                    <p class="font-bold">Total estimado: ${total.toFixed(2)} MXN</p>
-                    {#if overLimit}<p role="alert" class="text-sm text-destructive">
-                            El pedido supera el máximo de ${Number(limites.total_max).toFixed(2)} MXN. Quita productos o divídelo en varios pedidos.
-                        </p>{/if}
-                    <p class="text-xs text-muted-foreground">El servidor verifica disponibilidad y precios al confirmar.</p>
-                    {#if user && !puedeOrdenar}<p class="text-sm">Los cocineros no capturan pedidos.</p>{/if}
-                    <button
-                        type="submit"
-                        disabled={!initialized ||
-                            !online ||
-                            !activeUser ||
-                            !puedeOrdenar ||
-                            !cart.items.length ||
-                            overLimit ||
-                            busy ||
-                            needsReview ||
-                            cart.items.some((item) => item.unavailable)}
-                        class="w-full rounded-xl bg-primary p-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                        >{busy ? 'Enviando…' : cart.pending ? 'Reintentar envío' : 'Confirmar pedido'}</button
-                    >
-                </form>
-            </section>
+            <!-- Carrito rediseñado en main (CartPanel) + reglas de HU-08: el personal también captura pedidos. -->
+            <CartPanel
+                bind:cart
+                {catalog}
+                {limites}
+                {user}
+                {activeUser}
+                {online}
+                {initialized}
+                {busy}
+                {overLimit}
+                {total}
+                {cartChanges}
+                {needsReview}
+                {puedeOrdenar}
+                {personal}
+                rolPersonal={rolesPersonal[user?.rol] ?? null}
+                {confirmacion}
+                onChangeCart={changeCart}
+                onUpdateQuantity={updateQuantity}
+                onRemove={remove}
+                onClear={clearCart}
+                onReviewCart={reviewCart}
+                onSubmit={send}
+            />
         </div>
     </div>
 </AppLayout>

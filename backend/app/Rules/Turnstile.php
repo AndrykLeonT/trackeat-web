@@ -32,7 +32,12 @@ class Turnstile implements ValidationRule
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         try {
-            $respuesta = Http::asForm()->timeout(5)->post(self::VERIFICAR, [
+            $cliente = Http::asForm()->timeout(5);
+            if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA') && ! ini_get('curl.cainfo') && ! ini_get('openssl.cafile')) {
+                $cliente = $cliente->withOptions(['curl' => [CURLOPT_SSL_OPTIONS => CURLSSLOPT_NATIVE_CA]]);
+            }
+
+            $respuesta = $cliente->post(self::VERIFICAR, [
                 'secret' => config('services.turnstile.secret_key'),
                 'response' => $value,
                 'remoteip' => request()->ip(),

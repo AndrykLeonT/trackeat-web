@@ -103,7 +103,7 @@ try {
     await staff.locator('#email').fill('administrador@example.test');
     await staff.locator('#password').fill('TrackEatDemo!2026');
     await staff.getByRole('button', { name: 'Log in', exact: true }).click();
-    await staff.waitForURL(base + '/');
+    await staff.waitForURL(`${base}/dashboard`);
     await staff.goto(`${base}/comandas`);
     await waitText(staff, 'Tiempo real conectado');
     const card = staff.getByRole('article').filter({ has: staff.getByRole('heading', { name: formatoFolio(order.numero_pedido), exact: true }) });

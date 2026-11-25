@@ -1,5 +1,5 @@
 {
-  "origin": "https://parcel-questions-forestry-laptops.trycloudflare.com",
+  "origin": "https://owen-reserve-franchise-mounting.trycloudflare.com",
   "observations": [
     {
       "path": "/menu/",
@@ -69,7 +69,7 @@
   ],
   "httpRedirect": {
     "status": 301,
-    "location": "https://parcel-questions-forestry-laptops.trycloudflare.com/menu/",
+    "location": "https://owen-reserve-franchise-mounting.trycloudflare.com/menu/",
     "redirectsToHttps": true
   }
 }

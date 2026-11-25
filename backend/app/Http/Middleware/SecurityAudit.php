@@ -21,14 +21,14 @@ class SecurityAudit
     public function terminate(Request $request, Response $response): void
     {
         $route = $request->route();
-        if (! $route || ! preg_match('~^(api/(pedidos|catalogo)|admin/(productos|categorias)|pedidos/|login$|register$|logout$|forgot-password$|reset-password|broadcasting/auth$)~', $route->uri())) {
+        if (! $route || ! preg_match('~^(api/(pedidos|catalogo|tablero)|admin/(productos|categorias|purga)|pedidos/|caja($|/)|login$|register$|logout$|forgot-password$|reset-password|broadcasting/auth$)~', $route->uri())) {
             return;
         }
         $status = $response->getStatusCode();
         $invalidForm = $request->hasSession() && $request->session()->has('errors');
         $unauthenticatedRedirect = $status === 302
             && $request->user() === null
-            && preg_match('~^(api/pedidos|admin/(productos|categorias)|pedidos/|broadcasting/auth$)~', $route->uri()) === 1;
+            && preg_match('~^(api/(pedidos|tablero)|admin/(productos|categorias|purga)|pedidos/|caja($|/)|broadcasting/auth$)~', $route->uri()) === 1;
         if ($request->isMethod('GET') && $status < 400 && ! $unauthenticatedRedirect) {
             return;
         }

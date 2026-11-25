@@ -275,6 +275,58 @@ class CatalogoSecurityTest extends TestCase
         $this->assertSame(302, $events[0]['status']);
     }
 
+    public function test_security_audit_covers_tablero_caja_and_purga_with_route_templates(): void
+    {
+        $events = [];
+        $logger = \Mockery::mock();
+        $logger->shouldReceive('info')->andReturnUsing(function ($event, $context) use (&$events) {
+            $events[] = $context;
+        });
+        Log::shouldReceive('channel')->with('security')->andReturn($logger);
+
+        $order = Pedido::firstOrFail();
+
+        // Redirecciones sin sesión en tablero, caja y purga.
+        $this->get('/api/tablero')->assertRedirect('/login');
+        $this->get('/caja')->assertRedirect('/login');
+        $this->get('/admin/purga')->assertRedirect('/login');
+
+        // Accesos rechazados por rol (403) en tablero, caja (incluyendo ruta con ID) y purga.
+        $client = $this->client();
+        $this->actingAs($client)->getJson('/api/tablero')->assertForbidden();
+        $this->actingAs($client)->get('/caja')->assertForbidden();
+        $this->actingAs($client)->get('/caja/pedidos/'.$order->id.'/cobrar')->assertForbidden();
+        $this->actingAs($client)->get('/admin/purga')->assertForbidden();
+
+        $this->assertCount(7, $events);
+        $routes = array_column($events, 'route');
+        $this->assertSame([
+            'api/tablero',
+            'caja',
+            'admin/purga',
+            'api/tablero',
+            'caja',
+            'caja/pedidos/{pedido}/cobrar',
+            'admin/purga',
+        ], $routes);
+
+        foreach (array_slice($events, 0, 3) as $event) {
+            $this->assertSame('request_rejected', $event['event']);
+            $this->assertSame('authentication_required', $event['reason']);
+            $this->assertSame('visitante', $event['role']);
+            $this->assertSame(302, $event['status']);
+        }
+        foreach (array_slice($events, 3) as $event) {
+            $this->assertSame('request_rejected', $event['event']);
+            $this->assertSame('role_denied', $event['reason']);
+            $this->assertSame('cliente', $event['role']);
+            $this->assertSame(403, $event['status']);
+            $this->assertSame(['event', 'role', 'result', 'reason', 'route', 'method', 'status', 'request_id'], array_keys($event));
+        }
+
+        $this->assertStringNotContainsString('/'.$order->id.'/', json_encode($events));
+    }
+
     public function test_security_retention_uses_calendar_days_and_does_not_touch_other_logs(): void
     {
         $directory = Storage::disk('local')->path('test-logs');
