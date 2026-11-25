@@ -3,14 +3,15 @@
     import ChefHat from '@lucide/svelte/icons/chef-hat';
     import { states } from '@/lib/trackeat';
     import { formatoFolio } from '@/lib/folio';
-    let { order, role, disabled = false, onadvance } = $props();
+    // `estacion`: la del usuario (solo cocineros). Ocultar el botón es comodidad; el servidor aplica la regla.
+    let { order, role, estacion = null, disabled = false, onadvance } = $props();
     function next(state) {
         return { recibido: 'preparacion', preparacion: 'listo', listo: 'entregado' }[state];
     }
-    function allowed(state) {
+    function allowed(state, stationName) {
         return (
             role === 'administrador' ||
-            (role === 'cocinero' && state !== 'entregado') ||
+            (role === 'cocinero' && state !== 'entregado' && (estacion === 'general' || estacion === stationName)) ||
             (['mesero', 'cajero'].includes(role) && state === 'entregado')
         );
     }
@@ -40,7 +41,7 @@
         {#each order.estaciones as station (station.id)}
             <div class="rounded-xl border border-border p-2.5">
                 <p class="mb-2 text-xs font-semibold capitalize">{station.estacion} · {states[station.estado]}</p>
-                {#if next(station.estado) && allowed(next(station.estado))}<button
+                {#if next(station.estado) && allowed(next(station.estado), station.estacion)}<button
                         type="button"
                         {disabled}
                         onclick={() => onadvance(order.id, station.estacion, next(station.estado))}
