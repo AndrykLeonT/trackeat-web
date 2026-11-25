@@ -6,6 +6,7 @@
         "verify:realtime:browser": "node tests/realtime-browser.mjs",
         "verify:entrega": "node tests/entrega.mjs",
         "verify:carga": "node tests/carga.mjs",
+        "verify:csp": "node tests/csp-browser.mjs",
         "build": "vite build && vite build --config vite.personal.config.js && vite build --config vite.menu.config.js",
         "build:menu": "vite build --config vite.menu.config.js",
         "build:personal": "vite build --config vite.personal.config.js",
