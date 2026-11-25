@@ -70,7 +70,7 @@ class LiveOrdersTest extends TestCase
     {
         $client = $this->user();
         $this->actingAs($client)->getJson('/api/pedidos')->assertOk()->assertJsonMissing(['numero_pedido' => 'DEMO-001']);
-        $this->patchJson('/api/pedidos/'.Pedido::first()->id.'/estacion', ['estacion' => 'general', 'estado' => 'preparacion'])->assertForbidden();
+        $this->patchJson('/api/pedidos/'.Pedido::first()->id.'/estacion', ['estacion' => 'cocina', 'estado' => 'preparacion'])->assertForbidden();
         $this->postJson('/broadcasting/auth', ['socket_id' => '1.2', 'channel_name' => 'private-trackeat.personal'])->assertForbidden();
         $this->getJson('/api/tablero')->assertForbidden();
         $client->forceFill(['eliminado' => true])->save();
@@ -95,11 +95,11 @@ class LiveOrdersTest extends TestCase
         $order = Pedido::where('numero_pedido', 'DEMO-001')->firstOrFail();
         $this->actingAs($this->user('cocinero'));
         $url = '/api/pedidos/'.$order->id.'/estacion';
-        $this->patchJson($url, ['estacion' => 'general', 'estado' => 'listo'])->assertUnprocessable();
-        $this->patchJson($url, ['estacion' => 'general', 'estado' => 'preparacion'])->assertOk()->assertJsonPath('estado', 'preparacion');
-        $this->patchJson($url, ['estacion' => 'general', 'estado' => 'listo'])->assertOk();
-        $this->patchJson($url, ['estacion' => 'general', 'estado' => 'entregado'])->assertForbidden();
-        $this->actingAs($this->user('mesero'))->patchJson($url, ['estacion' => 'general', 'estado' => 'entregado'])->assertOk();
+        $this->patchJson($url, ['estacion' => 'cocina', 'estado' => 'listo'])->assertUnprocessable();
+        $this->patchJson($url, ['estacion' => 'cocina', 'estado' => 'preparacion'])->assertOk()->assertJsonPath('estado', 'preparacion');
+        $this->patchJson($url, ['estacion' => 'cocina', 'estado' => 'listo'])->assertOk();
+        $this->patchJson($url, ['estacion' => 'cocina', 'estado' => 'entregado'])->assertForbidden();
+        $this->actingAs($this->user('mesero'))->patchJson($url, ['estacion' => 'cocina', 'estado' => 'entregado'])->assertOk();
         $this->getJson('/api/tablero')->assertOk()->assertJsonPath('estados.entregado', 2);
     }
 

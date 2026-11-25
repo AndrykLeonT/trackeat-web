@@ -8,7 +8,7 @@
     import CircleAlert from '@lucide/svelte/icons/circle-alert';
 
     let { categoria = null } = $props();
-    const values = () => ({ nombre: categoria?.nombre ?? '', estacion: categoria?.estacion ?? 'general', disponible: categoria?.disponible ?? true });
+    const values = () => ({ nombre: categoria?.nombre ?? '', estacion: categoria?.estacion ?? 'cocina', disponible: categoria?.disponible ?? true });
     const form = useForm(values());
     let loadedId = untrack(() => categoria?.id ?? null);
     const formErrors = $derived(Object.entries($form.errors || {}));
@@ -93,7 +93,6 @@
                     bind:value={$form.estacion}
                     class="mt-1.5 h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                    <option value="general">General</option>
                     <option value="cocina">Cocina</option>
                     <option value="barra">Barra</option>
                 </select>

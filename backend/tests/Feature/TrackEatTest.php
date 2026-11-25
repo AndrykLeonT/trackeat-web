@@ -105,25 +105,22 @@ class TrackEatTest extends TestCase
         $old = $this->order('DEMO-002');
         $product = Producto::where('nombre', 'Hamburguesa')->firstOrFail();
         $product->update(['precio' => '140.00']);
-        $product->categoria->update(['estacion' => 'general']);
-        $new = $this->pedidos->crear($this->cliente, ['id_usuario' => $this->cliente->id, 'tipo_entrega' => 'para_llevar', 'total' => '1',
+        $product->categoria->update(['estacion' => 'barra']);
+        $new = $this->pedidos->crear($this->cliente, ['tipo_entrega' => 'para_llevar', 'total' => '1',
             'items' => [['id_producto' => $product->id, 'cantidad' => 2, 'precio_unitario' => '1']]]);
         $this->assertSame('150.00', $old->fresh()->total);
         $this->assertSame('120.00', $old->items()->where('id_producto', $product->id)->first()->precio_unitario);
         $this->assertSame('cocina', $old->items()->where('id_producto', $product->id)->first()->estacion);
         $this->assertSame('280.00', $new->total);
-        $this->assertSame('general', $new->items->first()->estacion);
+        $this->assertSame('barra', $new->items->first()->estacion);
     }
 
     public function test_creation_is_atomic_and_rejects_missing_or_unavailable_products(): void
     {
-        $data = ['id_usuario' => $this->cliente->id, 'tipo_entrega' => 'para_llevar',
+        $data = ['tipo_entrega' => 'para_llevar',
             'items' => [['id_producto' => Producto::first()->id, 'cantidad' => 1], ['id_producto' => 99999, 'cantidad' => 1]]];
         $this->rejected(fn () => $this->pedidos->crear($this->mesero, $data));
         $this->assertSame(4, Pedido::count());
-        $data['id_usuario'] = null;
-        $this->rejected(fn () => $this->pedidos->crear($this->mesero, $data));
-        $data['id_usuario'] = $this->cliente->id;
         $data['items'] = [['id_producto' => Producto::first()->id, 'cantidad' => 1]];
         Producto::first()->update(['disponible' => false]);
         $this->rejected(fn () => $this->pedidos->crear($this->mesero, $data));
@@ -131,7 +128,7 @@ class TrackEatTest extends TestCase
 
     public function test_orders_require_valid_delivery_information(): void
     {
-        $data = ['id_usuario' => $this->cliente->id, 'tipo_entrega' => 'comer_aqui',
+        $data = ['tipo_entrega' => 'comer_aqui',
             'items' => [['id_producto' => Producto::first()->id, 'cantidad' => 1]]];
         $this->rejected(fn () => $this->pedidos->crear($this->mesero, $data));
         $data['num_mesa'] = 4;
@@ -155,12 +152,12 @@ class TrackEatTest extends TestCase
         $this->assertSame('listo', $this->order('DEMO-002')->estado);
     }
 
-    public function test_general_station_can_complete_without_other_stations(): void
+    public function test_single_station_can_complete_without_other_stations(): void
     {
         $id = $this->order('DEMO-001')->id;
-        $this->pedidos->avanzar($this->cocinero, $id, 'general', 'preparacion');
-        $this->pedidos->avanzar($this->cocinero, $id, 'general', 'listo');
-        $this->assertSame('entregado', $this->pedidos->avanzar($this->mesero, $id, 'general', 'entregado')->estado);
+        $this->pedidos->avanzar($this->cocinero, $id, 'cocina', 'preparacion');
+        $this->pedidos->avanzar($this->cocinero, $id, 'cocina', 'listo');
+        $this->assertSame('entregado', $this->pedidos->avanzar($this->mesero, $id, 'cocina', 'entregado')->estado);
         $this->assertSame(1, $this->order('DEMO-001')->estaciones()->count());
     }
 
@@ -168,9 +165,9 @@ class TrackEatTest extends TestCase
     {
         $this->rejected(fn () => $this->caja->abrir($this->cliente, '10'), AuthorizationException::class);
         $this->rejected(fn () => $this->pedidos->avanzar($this->cliente, $this->order('DEMO-002')->id, 'cocina', 'listo'), AuthorizationException::class);
-        $this->rejected(fn () => $this->pedidos->crear($this->cliente, ['id_usuario' => User::where('email', 'cliente2@example.test')->first()->id,
-            'tipo_entrega' => 'para_llevar', 'items' => [['id_producto' => Producto::first()->id, 'cantidad' => 1]]]), AuthorizationException::class);
         $this->cajero->forceFill(['eliminado' => true])->save();
+        $this->rejected(fn () => $this->pedidos->crear($this->cajero, ['tipo_entrega' => 'para_llevar',
+            'items' => [['id_producto' => Producto::first()->id, 'cantidad' => 1]]]), AuthorizationException::class);
         $this->rejected(fn () => $this->caja->cobrar($this->cajero, $this->order('DEMO-001')->id, $this->open()->id, 'efectivo', '10'), AuthorizationException::class);
     }
 
@@ -252,7 +249,7 @@ class TrackEatTest extends TestCase
     public function test_database_constraints_and_history_immutability(): void
     {
         $order = $this->order('DEMO-001');
-        $this->rejected(fn () => $order->estaciones()->create(['estacion' => 'general']), QueryException::class);
+        $this->rejected(fn () => $order->estaciones()->create(['estacion' => 'cocina']), QueryException::class);
         $this->rejected(fn () => Producto::first()->update(['precio' => '-1']), QueryException::class);
         $this->rejected(fn () => $order->update(['id_usuario' => 99999]), QueryException::class);
         $this->rejected(fn () => $order->items()->first()->update(['cantidad' => 2]), QueryException::class);

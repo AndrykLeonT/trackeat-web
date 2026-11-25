@@ -31,7 +31,7 @@
             : 'Organiza las categorías del menú y su estación de preparación.',
     );
     const base = $derived(`/admin/${kind}`);
-    const stationLabels = { general: 'General', cocina: 'Cocina', barra: 'Barra' };
+    const stationLabels = { cocina: 'Cocina', barra: 'Barra' };
     const key = (value) =>
         value
             .normalize('NFD')

@@ -1,5 +1,6 @@
 <script>
     import { states } from '@/lib/trackeat';
+    import { formatoFolio } from '@/lib/folio';
     let { totals = {}, orders = [], showOrders = false, demoRoom = true } = $props();
     const entries = $derived(Object.entries(states).map(([state, label]) => ({ state, label, total: Number(totals[state] || 0) })));
     const max = $derived(Math.max(1, ...entries.map((entry) => entry.total)));
@@ -34,7 +35,7 @@
         <ul class="mt-3 space-y-2" aria-live="polite">
             {#each orders.slice(0, 10) as order (order.id)}
                 <li class="flex flex-wrap justify-between gap-2 border-b border-border py-2 text-sm">
-                    <span class="break-all">{order.numero_pedido}</span><strong>{states[order.estado]}</strong>
+                    <span class="break-all">{formatoFolio(order.numero_pedido)}</span><strong>{states[order.estado]}</strong>
                 </li>
             {:else}<li class="text-sm text-muted-foreground">Todavía no hay pedidos.</li>{/each}
         </ul>

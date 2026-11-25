@@ -56,7 +56,7 @@ class CatalogoSecurityTest extends TestCase
             $this->actingAs(User::where('rol', $role)->first())->get('/admin/productos')->assertForbidden();
             $this->postJson('/admin/productos', $this->productData())->assertForbidden();
             $this->deleteJson('/admin/productos/'.Producto::first()->id)->assertForbidden();
-            $this->postJson('/admin/categorias', ['nombre' => 'Prueba', 'estacion' => 'general', 'disponible' => true])->assertForbidden();
+            $this->postJson('/admin/categorias', ['nombre' => 'Prueba', 'estacion' => 'cocina', 'disponible' => true])->assertForbidden();
         }
         $admin = $this->admin();
         $this->actingAs($admin)->get('/admin/productos')->assertOk();
@@ -82,7 +82,7 @@ class CatalogoSecurityTest extends TestCase
         $this->actingAs($this->admin());
         $this->postJson('/admin/categorias', ['nombre' => ' Café ', 'estacion' => 'barra', 'disponible' => true])->assertRedirect('/admin/categorias');
         $category = Categoria::where('nombre', 'Café')->firstOrFail();
-        $this->postJson('/admin/categorias', ['nombre' => 'cAFE', 'estacion' => 'general', 'disponible' => true])->assertUnprocessable()->assertJsonValidationErrors('nombre');
+        $this->postJson('/admin/categorias', ['nombre' => 'cAFE', 'estacion' => 'barra', 'disponible' => true])->assertUnprocessable()->assertJsonValidationErrors('nombre');
         $this->deleteJson('/admin/categorias/'.$category->id)->assertRedirect();
         $this->postJson('/admin/categorias', ['nombre' => 'cafe', 'estacion' => 'barra', 'disponible' => true])->assertUnprocessable();
         $this->postJson('/admin/categorias/'.$category->id.'/restaurar')->assertRedirect();
@@ -220,7 +220,7 @@ class CatalogoSecurityTest extends TestCase
         $this->getJson('/api/pedidos/'.$other->id)->assertNotFound();
         $this->get('/pedidos/'.$other->id)->assertNotFound();
         $this->getJson('/api/pedidos/999999')->assertNotFound();
-        $this->patchJson('/api/pedidos/'.$other->id.'/estacion', ['estacion' => 'general', 'estado' => 'preparacion'])->assertNotFound();
+        $this->patchJson('/api/pedidos/'.$other->id.'/estacion', ['estacion' => 'cocina', 'estado' => 'preparacion'])->assertNotFound();
         foreach (['administrador', 'cocinero', 'mesero', 'cajero'] as $role) {
             $this->actingAs(User::where('rol', $role)->first())->getJson('/api/pedidos/'.$other->id)->assertOk();
         }

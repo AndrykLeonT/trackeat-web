@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import process from 'node:process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { formatoFolio } from '../src/lib/folio.js';
 
 const demo = process.env.TRACKEAT_DEMO_URL;
 assert(demo, 'Define TRACKEAT_DEMO_URL con el enlace firmado del servidor de pruebas.');
@@ -79,11 +80,11 @@ try {
     const response = await sent;
     assert(response.ok(), await response.text());
     const order = await response.json();
-    await waitText(a, `Pedido confirmado: ${order.numero_pedido}`);
+    await waitText(a, `Pedido confirmado: ${formatoFolio(order.numero_pedido)}`);
     await a.goto(`${base}/comandas/desglose`);
     await waitText(a, 'Tiempo real conectado');
     await a.getByRole('heading', { name: 'Mis pedidos', exact: true }).waitFor();
-    await waitText(b, order.numero_pedido);
+    await waitText(b, formatoFolio(order.numero_pedido));
     const board = await (await b.request.get(`${base}/api/tablero`)).json();
     assert(board.pedidos.some((row) => row.id === order.id));
     await b.waitForFunction(
@@ -103,7 +104,7 @@ try {
     await staff.waitForURL(base + '/');
     await staff.goto(`${base}/comandas`);
     await waitText(staff, 'Tiempo real conectado');
-    const card = staff.getByRole('article').filter({ has: staff.getByRole('heading', { name: order.numero_pedido, exact: true }) });
+    const card = staff.getByRole('article').filter({ has: staff.getByRole('heading', { name: formatoFolio(order.numero_pedido), exact: true }) });
     await card.getByRole('button', { name: 'Empezar a preparar', exact: true }).click();
     await card.getByRole('button', { name: 'Marcar listo', exact: true }).waitFor();
     await waitText(a, 'En preparación');
@@ -117,7 +118,7 @@ try {
     await b.getByRole('status', { name: /^(Tiempo real conectado|Actualización automática · cada 5 s)$/ }).waitFor();
     await b.waitForFunction(
         (id) => [...document.querySelectorAll('li')].some((li) => li.textContent.includes(id) && li.textContent.includes('Entregado')),
-        order.numero_pedido,
+        formatoFolio(order.numero_pedido),
     );
     checks.push('Personal avanza estados; el cliente recibe los cambios; una reconexión recupera la entrega perdida.');
     await staff.getByRole('link', { name: 'Ver desglose de comandas', exact: true }).click();

@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import AppLayout from '@/layouts/AppLayout.svelte';
     import { api, session } from '@/lib/trackeat';
+    import { formatoFolio } from '@/lib/folio';
     import { prepareOffline, downloadGalleries, galleryReady } from './offline.js';
     import * as db from './db.js';
     import logo from '@/assets/images/logo.png';
@@ -225,7 +226,7 @@
             });
             cart = emptyCart();
             await persist();
-            message = `Pedido confirmado: ${order.numero_pedido}. Total: $${Number(order.total).toFixed(2)} MXN.`;
+            message = `Pedido confirmado: ${formatoFolio(order.numero_pedido)}. Total: $${Number(order.total).toFixed(2)} MXN.`;
             confirmedOrder = order.id;
             needsReview = false;
             cartChanges = [];

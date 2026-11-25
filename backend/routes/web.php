@@ -2,12 +2,9 @@
 
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\TrackEatController;
-use App\Http\Middleware\ActiveTrackEatUser;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-
-Route::pattern('pedido', '[0-9]{1,18}');
 
 Route::get('/', function () {
     return Inertia::render('public/landing');
@@ -32,16 +29,7 @@ Route::get('/comandas/desglose', function () {
 Route::get('/menu', fn () => new RedirectResponse('/menu/'))->name('menu');
 
 Route::get('/demo/{room}', [DemoController::class, 'enter'])->middleware(['signed', 'throttle:120,1'])->name('demo.enter');
-Route::prefix('api')->group(function () {
-    Route::get('sesion', [TrackEatController::class, 'sesion']);
-    Route::middleware(['auth', ActiveTrackEatUser::class])->group(function () {
-        Route::get('pedidos', [TrackEatController::class, 'pedidos']);
-        Route::get('pedidos/{pedido}', [TrackEatController::class, 'detalle']);
-        Route::post('pedidos', [TrackEatController::class, 'crear'])->middleware('throttle:60,1');
-        Route::patch('pedidos/{pedido}/estacion', [TrackEatController::class, 'avanzar'])->middleware('throttle:120,1');
-        Route::get('tablero', [TrackEatController::class, 'tablero']);
-    });
-});
+Route::get('/api/sesion', [TrackEatController::class, 'sesion']);
 
 // El catálogo tiene su propio HTML estático para poder recargarlo sin conexión.
 Route::get('/personal', fn () => new RedirectResponse('/personal/'))->name('personal');
@@ -62,5 +50,6 @@ Route::get('/metricas', function () {
 
 require __DIR__.'/auth.php';
 require __DIR__.'/catalogo.php';
+// pedidos.php va antes que caja.php: define el patrón global `{pedido}` que caja también usa.
+require __DIR__.'/pedidos.php';
 require __DIR__.'/caja.php';
-Route::get('/pedidos/{pedido}', [TrackEatController::class, 'paginaPedido'])->middleware(['auth', ActiveTrackEatUser::class]);
